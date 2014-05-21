@@ -1,0 +1,71 @@
+----------------
+CAN Node Filters
+----------------
+
+Mask			Target Node
+-----------		-----------
+00000001		Controller
+00000010		Panel
+00000100		Floor 1
+00001000		Floor 2
+00010000		Floor 3
+
+
+------------------
+System message IDs 
+------------------
+
+ID:8			Command						CmdData
+-----------		-----------					-----------	
+00				Elevator location			FloorId:8		
+01				Call button pressed			FloorId:8  CallButtonID:8
+02 				Panel button pressed		PanelButtonID:8
+03				Append display character	Character:8
+FF				Error 						ErrorId:8
+
+
+---------------
+Floor IDs		
+---------------
+
+ID:8			Floor
+---------		---------
+01				1
+02				2
+03				3
+04				4
+
+
+-----------------
+Call Button IDs		
+-----------------
+
+ID:8			Button
+---------		---------
+01				Going down
+02				Going up
+
+
+-----------------
+Panel Button IDs		
+-----------------
+
+ID:8			Button
+---------		---------
+01				Select floor 1
+02				Select floor 2
+03				Select floor 3
+04				Select floor 4
+10				Door open
+11				Door close
+EE				Emergency stop		
+
+
+-----------------
+Error IDs		
+-----------------
+
+ID:8			Error
+---------		---------
+00				All clear
+01				Generic error
