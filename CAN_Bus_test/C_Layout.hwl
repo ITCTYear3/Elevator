@@ -1,0 +1,18 @@
+OPEN source 0 0 60 47
+Source < attributes TOOLTIP on,TOOLTIP_FORMAT signed,TOOLTIP_MODE details,FREEZE off,MARKS off
+OPEN assembly 60 0 40 31
+Assembly < attributes ADR on,CODE off,ABSADR on,SYMB off,FORMAT Auto,FREEZE off,TOPPC 0xC11E
+OPEN register 60 31 40 16
+Register < attributes FORMAT AUTO,COMPLEMENT None
+OPEN memory 60 47 40 22
+Memory < attributes FORMAT hex,COMPLEMENT None,WORD 1,ASC on,ADR on,MODE automatic,UPDATERATE 10,ADDRESS 0x80
+OPEN data 0 47 60 30
+Data:1 < attributes SCOPE global,COMPLEMENT None,FORMAT Symb,MODE automatic,SORT NotSort,UPDATERATE 10,NAMEWIDTH 16
+OPEN data 0 59 60 41
+Data:2 < attributes SCOPE local,COMPLEMENT None,FORMAT Symb,MODE periodical,SORT NotSort,UPDATERATE 1,NAMEWIDTH 16
+OPEN Mcuregisters 60 69 40 31
+MCURegisters < attributes COLUMNWIDTH 0, 150,COLUMNWIDTH 1, 100,COLUMNWIDTH 2, 350,FORMAT BIN,UPDATERATE 1,MODE automatic
+bckcolor 50331647
+font 'Courier New' 9 BLACK
+AUTOSIZE on
+ACTIVATE "Assembly" "Register" "Memory" "MCURegisters" "Source" "Data:1" "Data:2"
