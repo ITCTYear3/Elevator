@@ -1,4 +1,6 @@
 #include <hidef.h>
+#include "derivative.h"
+
 
 #include "mcutilib.h"
 

@@ -17,7 +17,9 @@ char *welcome_line1 = "                ";
 byte welcome_delay[9] = { 200, 60, 40, 30, 30, 30, 40, 60, 200 };
 
 void welcome() {   
-	char i, j; 	    			
+	char i, j; 	  
+	lcd_clear(); 	
+	lcd_home();   			
 	for ( i = 8; i >= 0; --i ) { 			  
 		lcd_goto(0x00);
 		for ( j = 0; j < i; 		++j ) 	lcd_putc(0xFF);
@@ -47,7 +49,7 @@ void unwelcome() {
 }
 
 
-#define CM_PER_FLOOR 30
+#define CM_PER_FLOOR 15
 
 word car_height;  
 byte floor;
@@ -55,7 +57,7 @@ byte floor;
 void main() {
 
 	//byte i;
-	word dist;
+	word d;
 	char buf[64];
 	
 	//adc_init();		 
@@ -64,8 +66,6 @@ void main() {
 	
 	lcd_init();
 	
-	lcd_clear(); 	
-	lcd_home(); 
 	
     welcome();	
 				   
@@ -75,14 +75,19 @@ void main() {
 
 	for(;;) {
 	
-		dist = dist_read();
-		car_height = (byte)((dist / 2) & 0x00FF);
-		floor = 1 + (car_height / CM_PER_FLOOR);	   	
+		d = dist_read();
+		if ( d > (7*4*CM_PER_FLOOR) ) {
+			car_height = 999;
+			floor = 0;
+		} else {
+			car_height = (10*d)/7;		
+			floor = 1 + ((car_height / 10) / CM_PER_FLOOR);	   
+		}	
 	
 		itoa(car_height, 10, 3, "", buf);   
 		lcd_goto(0x00);
 		lcd_puts(buf);
-		lcd_puts("cm/F"); 
+		lcd_puts("mm/F"); 
 		itoa(floor, 10, 2, "", buf);   
 		lcd_puts(buf+1);
 		delay_ms(100);

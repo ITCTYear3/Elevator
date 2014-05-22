@@ -1,4 +1,5 @@
-										 
+#include <hidef.h>
+#include "derivative.h"										 
 
 #include "spi.h"
 
