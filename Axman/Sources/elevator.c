@@ -3,6 +3,8 @@
 
 #include "mcutilib.h"
 
+#include "leds.h"
+
 #include "lcd.h"
 
 //#include "adc.h"
@@ -56,42 +58,69 @@ byte floor;
 
 void main() {
 
+	byte update_lcd;
+	byte cycle_count;
+
 	//byte i;
 	word d;
 	char buf[64];
 	
 	//adc_init();		 
 	
+	leds_init();
+	
 	dist_init();
 	
 	lcd_init();
+	
+	
+	leds_set(0, 0, 8, 8);	  
+	leds_set(1, 2, 8, 8);
 	
 	
     welcome();	
 				   
 	lcd_clear();  	
 	lcd_home(); 
+					   
+
+	cycle_count = 0;				   
+					   
+	update_lcd = 1;
 	
 
 	for(;;) {
 	
 		d = dist_read();
-		if ( d > (7*4*CM_PER_FLOOR) ) {
+		if ( d > (7*5*CM_PER_FLOOR) ) {
 			car_height = 999;
 			floor = 0;
 		} else {
 			car_height = (10*d)/7;		
 			floor = 1 + ((car_height / 10) / CM_PER_FLOOR);	   
+		}
+		
+		cycle_count++;
+		
+		if ( cycle_count == 10 ) {
+			update_lcd = 1;
+			cycle_count = 0;
 		}	
+			   	
+		if ( update_lcd ) {
+			update_lcd = 0;
 	
-		itoa(car_height, 10, 3, "", buf);   
-		lcd_goto(0x00);
-		lcd_puts(buf);
-		lcd_puts("mm/F"); 
-		itoa(floor, 10, 2, "", buf);   
-		lcd_puts(buf+1);
-		delay_ms(100);
+			itoa(car_height, 10, 3, "", buf);   
+			lcd_goto(0x00);
+			lcd_puts(buf);
+			lcd_puts("mm/F"); 
+			itoa(floor, 10, 2, "", buf);   
+			lcd_puts(buf+1);
+		}
+					  
+		delay_ms(10);
 	
+		leds_run();
 	
 	}
 }
