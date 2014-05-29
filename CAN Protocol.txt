@@ -5,33 +5,28 @@ CAN Node IDs (acceptance filters)
 -----------------
 11bits usable for an ID in standard CAN message
 
-NodeID:16   Target Node
----------   -----------
-0x0100      Controller
-0x0200      Inside Panel
-0x0310      Floor 1 Callbox
-0x0320      Floor 2 Callbox
-0x0330      Floor 3 Callbox
+NodeID:16                       Target Node
+---------                       -----------
+0bXXXX X000 0000 0001 (0x0001)  Controller
+0bXXXX X000 0000 0010 (0x0002)  Inside Panel
+0bXXXX X000 0000 0100 (0x0004)  Floor 1 Callbox
+0bXXXX X000 0000 1000 (0x0008)  Floor 2 Callbox
+0bXXXX X000 0001 0000 (0x0010)  Floor 3 Callbox
 
-
-8bit payload:
-  7   6   5   4   3   2   1   0
-+---+---+---+---+---+---+---+---+
-|   |   |   |   |   |   |   |   |
-+---+---+---+---+---+---+---+---+
+Masks will be the inverse of the node IDs to indicate that all other bits are 'dont care'
 
 
 -----------------
 System message IDs 
 -----------------
 
-ID:8    Command                     CmdData
-----    ------------------------    -----------
-0x00    Elevator location           FloorId:8
-0x01    Call button pressed         FloorId:8  CallButtonID:8
-0x02    Panel button pressed        PanelButtonID:8
-0x03    Append display character    Character:8
-0xFF    Error                       ErrorId:8
+ID:8    Command                     CmdData                     Message flow direction
+----    ------------------------    -----------                 -------------------------------
+0x00    Elevator location           FloorId:8  Direction:8      From controller to inside panel
+0x01    Call button pressed         FloorId:8  CallButtonID:8   From callbox to controller
+0x02    Panel button pressed        PanelButtonID:8             From callbox to controller
+0x03    Append display character    Character:8                 From controller to inside panel
+0xFF    Error                       ErrorId:8                   From any to any
 
 
 -----------------
@@ -44,6 +39,17 @@ ID:8    Floor
 0x02    2
 0x03    3
 0x04    4
+
+
+-----------------
+Direction
+-----------------
+
+ID:8    Direction
+----    ---------
+0x01    Up
+0x02    Down
+0x03    Stationary
 
 
 -----------------
