@@ -4,37 +4,7 @@
 
 #include "utils.h"
 
-
-// MSCAN module initialization mode
-// request to enter/exit initialization mode
-#define MSCAN_ENTER_INIT            SET_BITS(CANCTL0,CANCTL0_INITRQ_MASK)
-#define MSCAN_EXIT_INIT             CLR_BITS(CANCTL0,CANCTL0_INITRQ_MASK)
-#define MSCAN_INIT_MODE_ACTIVE      ( CANCTL1 & CANCTL1_INITAK_MASK )
-
-// MSCAN module sleep mode
-// request to enter/exit sleep mode
-#define MSCAN_SLEEP_MODE_ENABLE     SET_BITS(CANCTL0,CANCTL0_SLPRQ_MASK)
-#define MSCAN_SLEEP_MODE_DISABLE    CLR_BITS(CANCTL0,CANCTL0_SLPRQ_MASK)
-#define MSCAN_SLEEP_MODE_ACTIVE     ( CANCTL1 & CANCTL1_SLPAK_MASK )
-
-// MSCAN internal timer (timestamps)
-// free-running internal timer will assign a 16-bit timestamp to all messages
-#define MSCAN_TIME_ENABLE           SET_BITS(CANCTL0,CANCTL0_TIME_MASK)
-#define MSCAN_TIME_DISABLE          CLR_BITS(CANCTL0,CANCTL0_TIME_MASK)
-
-// MSCAN module wake-up mode
-// MSCAN module will restart from sleep mode when traffic detected on CAN bus (CANCTL0_SLPRQ flag gets cleared)
-#define MSCAN_WAKE_MODE_ENABLE      SET_BITS(CANCTL0,CANCTL0_WUPE_MASK)
-#define MSCAN_WAKE_MODE_DISABLE     CLR_BITS(CANCTL0,CANCTL0_WUPE_MASK)
-
-// MSCAN module loopback mode
-#define MSCAN_LOOPBACK_ENABLE       SET_BITS(CANCTL1,CANCTL1_LOOPB_MASK)
-#define MSCAN_LOOPBACK_DISABLE      CLR_BITS(CANCTL1,CANCTL1_LOOPB_MASK)
-
-// MSCAN module listen mode
-// able to receive messages of matching ID, but no messages are transmitted back
-#define MSCAN_LISTEN_MODE_ENABLE    SET_BITS(CANCTL1,CANCTL1_LISTEN_MASK)
-#define MSCAN_LISTEN_MODE_DISABLE   CLR_BITS(CANCTL1,CANCTL1_LISTEN_MASK)
+#define PAYLOAD_SIZE    8   // Max of 8 bytes of data per CAN frame
 
 // MSCAN module clock source
 // from either the bus clock or the oscillator clock
@@ -100,49 +70,13 @@
 #define MSCAN_TIME_SEG2_7       0x06
 #define MSCAN_TIME_SEG2_8       0x07
 
-// Interrupt events
-#define MSCAN_WAKE_INT_ENABLE       SET_BITS(CANRIER,CANRIER_WUPIE_MASK)    // Wake-up event interrupt
-#define MSCAN_WAKE_INT_DISABLE      CLR_BITS(CANRIER,CANRIER_WUPIE_MASK)
-#define MSCAN_CAN_STAT_INT_ENABLE   SET_BITS(CANRIER,CANRIER_CSCIE_MASK)    // CAN status change event interrupt
-#define MSCAN_CAN_STAT_INT_DISABLE  CLR_BITS(CANRIER,CANRIER_CSCIE_MASK)
-#define MSCAN_RSTATE_INT_ENABLE     SET_BITS(CANRIER,
-#define MSCAN_RSTATE_INT_DISABLE    CLR_BITS(CANRIER,
-#define MSCAN_TSTATE_INT_ENABLE     SET_BITS(CANRIER,
-#define MSCAN_TSTATE_INT_DISABLE    CLR_BITS(CANRIER,
-#define MSCAN_OVERRUN_INT_ENABLE    SET_BITS(CANRIER,CANRIER_OVRIE_MASK)    // Overrun event interrupt
-#define MSCAN_OVERRUN_INT_DISABLE   CLR_BITS(CANRIER,CANRIER_OVRIE_MASK)
-#define MSCAN_RECEIVE_INT_ENABLE    SET_BITS(CANRIER,CANRIER_RXFIE_MASK)    // Valid message in receiver interrupt
-#define MSCAN_RECEIVE_INT_DISABLE   CLR_BITS(CANRIER,CANRIER_RXFIE_MASK)
-/*
-#define MSCAN_TRANSMIT0_INT_ENABLE  SET_BITTS(CANTIER,CANTIER_TXEIE0_MASK)  // Transmit buffer 0 is empty interrupt (available for transmission)
-#define MSCAN_TRANSMIT0_INT_DISABLE CLR_BITTS(CANTIER,CANTIER_TXEIE0_MASK)
-#define MSCAN_TRANSMIT1_INT_ENABLE  SET_BITTS(CANTIER,CANTIER_TXEIE1_MASK)  // Transmit buffer 1 is empty interrupt (available for transmission)
-#define MSCAN_TRANSMIT1_INT_DISABLE CLR_BITTS(CANTIER,CANTIER_TXEIE1_MASK)
-#define MSCAN_TRANSMIT2_INT_ENABLE  SET_BITTS(CANTIER,CANTIER_TXEIE2_MASK)  // Transmit buffer 2 is empty interrupt (available for transmission)
-#define MSCAN_TRANSMIT2_INT_DISABLE CLR_BITTS(CANTIER,CANTIER_TXEIE2_MASK)
-*/
-
-// Abort requests
-// request to abort transmit of message
-#define MSCAN_ABORT_QUEUE0      SET_BITS(CANTARQ,CANTARQ_ABTRQ0_MASK)
-#define MSCAN_ABORT_QUEUE1      SET_BITS(CANTARQ,CANTARQ_ABTRQ1_MASK)
-#define MSCAN_ABORT_QUEUE2      SET_BITS(CANTARQ,CANTARQ_ABTRQ2_MASK)
-
-// Abort flags
-#define MSCAN_ABORT_ACK0        ( CANTAAK & CANTAAK_ABTAK0_MASK )   // Set if message in transmit buffer 0 was successfully aborted
-#define MSCAN_ABORT_ACK1        ( CANTAAK & CANTAAK_ABTAK1_MASK )   // Set if message in transmit buffer 1 was successfully aborted
-#define MSCAN_ABORT_ACK2        ( CANTAAK & CANTAAK_ABTAK2_MASK )   // Set if message in transmit buffer 2 was successfully aborted
-
 // MSCAN status flags
-#define MSCAN_RECEIVE_VALID     ( CANCTL0 & CANCTL0_RXFRM_MASK )    // Set if MSCAN module has received a valid message correctly (flag not valid in loopback mode)
-#define MSCAN_RECEIVE_ACTIVE    ( CANCTL0 & CANCTL0_RXACT_MASK )    // Set if MSCAN module is receiving a message
-#define MSCAN_SYNCED            ( CANCTL0 & CANCTL0_SYNCH_MASK )    // Set if MSCAN module is synchronized to the CAN bus
-
-#define MSCAN_WAKE_ACTIVITY     ( CANRFLG & CANRFLG_WUPIF_MASK )    // Set if MSCAN detects bus activity while in sleep mode (CANCTL0_WUPE bit must be set)
-#define MSCAN_CAN_STAT_CHANGED  ( CANRFLG & CANRFLG_CSCIF_MASK )    // Set if MSCAN changed current bus status
-
-#define MSCAN_OVERRUN_DETECTED  ( CANRFLG & CANRFLG_OVRIF_MASK )    // Set if a data overrun is detected
-//#define MSCAN_RECEIVE_FULL      ( CANRFLG & CANRFLG_RXF_MASK )      // Set if a valid message is available at the receiver buffer, must be cleared to release the buffer
+#define MSCAN_RECEIVE_VALID     CANCTL0_RXFRM   // Set if MSCAN module has received a valid message correctly (flag not valid in loopback mode)
+#define MSCAN_RECEIVE_ACTIVE    CANCTL0_RXACT   // Set if MSCAN module is receiving a message
+#define MSCAN_SYNCED            CANCTL0_SYNCH   // Set if MSCAN module is synchronized to the CAN bus
+#define MSCAN_WAKE_ACTIVITY     CANRFLG_WUPIF   // Set if MSCAN detects bus activity while in sleep mode (CANCTL0_WUPE bit must be set)
+#define MSCAN_CAN_STAT_CHANGED  CANRFLG_CSCIF   // Set if MSCAN changed current bus status
+#define MSCAN_OVERRUN_DETECTED  CANRFLG_OVRIF   // Set if a data overrun is detected
 
 /*
     Receiver Bus Status (CANRFLG_CSCIF bit must be set)
@@ -162,11 +96,17 @@
 */
 #define MSCAN_TSTAT_ERRORS      ((CANRFLG & CANRFLG_TSTAT_MASK) >> CANRFLG_TSTAT_BITNUM )
 
+// MSCAN acceptance filter modes
+#define MSCAN_ACC_MODE(mode)    FORCE_BITS(CANIDAC,CANIDAC_IDAM_MASK,(mode) << CANIDAC_IDAM_BITNUM)
+#define MSCAN_ACC_2_32      0x00    // Two 32bit acceptance filters
+#define MSCAN_ACC_4_16      0x01    // Four 16bit acceptance filters
+#define MSCAN_ACC_8_8       0x02    // Eight 8bit acceptance filters
+#define MSCAN_ACC_CLOSED    0x03    // Filter closed; no message is copied into receive foreground buffer, RXF flag is never set
 
 /*****************************************************************************/
 
-void CANinit(void);
-byte CANsend(dword, byte, byte, byte*);
-
+void CANinit(word);
+byte CANsend(word, byte, byte, byte *);
+void CANget(byte *);
 
 #endif // _MSCAN_H
