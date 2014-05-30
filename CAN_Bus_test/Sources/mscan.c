@@ -4,7 +4,9 @@
 #include <mc9s12c32.h>
 #include "mscan.h"
 
-static byte volatile rxdata[PAYLOAD_SIZE];  // Array filled by receiver interrupt
+static byte volatile rxbuffer[PAYLOAD_SIZE] = {0};  // Array filled by receiver interrupt
+static byte volatile data_available_flag = 0;
+
 
 /*
  * Calculating CAN bus bit rate:
@@ -90,7 +92,7 @@ byte CANsend(word id, byte priority, byte length, byte *data) {
     CANTBSEL = CANTFLG;     // Select lowest tx buffer using tx buffer empty flags
     txbuffer = CANTBSEL;    // Save actual selected tx buffer to clear flag after message is constructed
     
-    *((dword*)((dword)(&CANTXIDR0))) = ((dword)id << 5 ) << 16; // Load in ID of message as a 32bit dword (TXIDR0 - TXIDR3)
+    *((dword*)((dword)(&CANTXIDR0))) = (dword)id << (5+16); // Load in ID of message as a 32bit dword (TXIDR0 - TXIDR3)
     
     // Truncate length to 0-8 bytes
     // Most CAN controllers will assume 8 bytes of data if message length value is >8
@@ -109,17 +111,27 @@ byte CANsend(word id, byte priority, byte length, byte *data) {
     return 0;
 }
 
-/* Fill a given array with payload data */
-void CANget(byte *p) {
+/* Fill a dataMessage struct with payload data */
+void CANget(dataMessage *message) {
     byte i;
-    //static byte j = 0;
     
-    for(i=0; i<PAYLOAD_SIZE; i++) {
     DisableInterrupts;
-        *p++ = rxdata[i];
-        //j = (byte)(((word)i+1) % PAYLOAD_SIZE);
-    EnableInterrupts;
+    for(i=0; i<PAYLOAD_SIZE; i++) {
+        *((byte*)message + i) = rxbuffer[i];
     }
+    EnableInterrupts;
+}
+
+/* Return the data available flag */
+byte data_available(void) {
+    return data_available_flag;
+}
+
+/* Clear the data available flag */
+void data_used(void) {
+    DisableInterrupts;
+    data_available_flag = 0;
+    EnableInterrupts;
 }
 
 /*****************************************************************************/
@@ -130,15 +142,12 @@ interrupt VectorNumber_Vcanrx
 void CANreceiveISR(void) {
     byte length, i;
     
-    // Clearing the buffer isn't necessary but makes it easier to debug
-    for(i=0; i<PAYLOAD_SIZE; i++)
-        rxdata[i] = '\0';
-    
-    length = CANRXDLR_DLC;  // Length is 4 bits
+    length = CANRXDLR_DLC;  // Length is 4 bits, max value of 8
     
     // Copy out payload data (data segment registers memory mapped in sequential order)
     for(i=0; i<length; i++)
-        rxdata[i] = *(&CANRXDSR0 + i);
+        rxbuffer[i] = *(&CANRXDSR0 + i);
     
+    data_available_flag = 1;
     CANRFLG = CANRFLG_RXF_MASK; // Clear RXF flag to release rx buffer
 }

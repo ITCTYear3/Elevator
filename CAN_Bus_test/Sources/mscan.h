@@ -4,6 +4,19 @@
 
 #include "utils.h"
 
+// Data message structure for payload data
+typedef struct {
+    byte command;   // First byte determines what the remaining bytes signify
+    byte data_byte1;
+    byte data_byte2;
+    byte data_byte3;
+    byte data_byte4;
+    byte data_byte5;
+    byte data_byte6;
+    byte data_byte7;
+} dataMessage;
+
+
 #define PAYLOAD_SIZE    8   // Max of 8 bytes of data per CAN frame
 
 // MSCAN module clock source
@@ -107,6 +120,8 @@
 
 void CANinit(word);
 byte CANsend(word, byte, byte, byte *);
-void CANget(byte *);
+void CANget(dataMessage *);
+byte data_available(void);
+void data_used(void);
 
 #endif // _MSCAN_H
