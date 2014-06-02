@@ -58,8 +58,8 @@ Call Button IDs
 
 ID:8    Button
 ----    ---------
-0x01    Going down
-0x02    Going up
+0x01    Going up
+0x02    Going down
 
 
 -----------------
