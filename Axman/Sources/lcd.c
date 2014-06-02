@@ -2,6 +2,7 @@
 #include "derivative.h"
 
 #include "mcutilib.h"
+#include "utils.h"
 
 #include "spi.h"
 #include "lcd.h"
