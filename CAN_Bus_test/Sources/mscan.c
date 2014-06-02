@@ -37,7 +37,7 @@ void CANinit(word id) {
     SET_MSCAN_TIME_SEG1(MSCAN_TIME_SEG1_4); // Use a bit time of 8 time quanta (1+4+3)
     SET_MSCAN_TIME_SEG2(MSCAN_TIME_SEG2_3);
     
-    SET_MSCAN_JUMP_WIDTH(MSCAN_SJW_4TQ);    // Set sync jump width to the largest possible value (faster resync)
+    SET_MSCAN_JUMP_WIDTH(MSCAN_SJW_2TQ);    // Sync jump width must be less than time segment 2
     SET_MSCAN_SAMPLE_BITS(MSCAN_SAMPLE_1);  // Sample once per bit (vs 3 times per bit)
     
     CANCTL0_TIME = 1;   // Add a 16-bit timestamp to each message
