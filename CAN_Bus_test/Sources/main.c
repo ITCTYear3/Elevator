@@ -57,13 +57,17 @@ void callbox(void) {
     txframe1.id = MSCAN_FL1_ID;
     txframe1.priority = 0x01;
     txframe1.length = 3;
-    txframe1.payload = {CMD_LOCATION, FLOOR1, DIRECTION_UP};
+    txframe1.payload[0] = CMD_LOCATION;
+    txframe1.payload[1] = FLOOR1;
+    txframe1.payload[2] = DIRECTION_UP;
     
     // Message to floor 1 callbox; direction down
     txframe2.id = MSCAN_FL1_ID;
     txframe2.priority = 0x01;
     txframe2.length = 3;
-    txframe2.payload = {CMD_LOCATION, FLOOR1, DIRECTION_DOWN};
+    txframe1.payload[0] = CMD_LOCATION;
+    txframe1.payload[1] = FLOOR1;
+    txframe1.payload[2] = DIRECTION_DOWN;
     
     
     if(SW1 && !sw1_pressed) {
@@ -98,7 +102,7 @@ void callbox(void) {
         CANget(&rxmessage);
         data_used();
         
-        switch(rxmessage.command) {
+        switch(rxmessage.payload[0]) {
             case CMD_LOCATION:
                 command = "Loc";
                 break;
@@ -119,7 +123,7 @@ void callbox(void) {
                 goto cmd_error;
         }
         
-        switch(rxmessage.data_byte1) {
+        switch(rxmessage.payload[1]) {
             case FLOOR1:
                 floor = "1";
                 break;
@@ -134,7 +138,7 @@ void callbox(void) {
                 goto cmd_error;
         }
         
-        switch(rxmessage.data_byte2) {
+        switch(rxmessage.payload[2]) {
             case DIRECTION_UP:
                 direction = "Up";
                 break;

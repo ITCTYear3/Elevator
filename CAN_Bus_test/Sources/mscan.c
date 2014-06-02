@@ -92,18 +92,18 @@ byte CANsend(CANframe *frame) {
     CANTBSEL = CANTFLG;     // Select lowest tx buffer using tx buffer empty flags
     txbuffer = CANTBSEL;    // Save actual selected tx buffer to clear flag after message is constructed
     
-    *((dword*)((dword)(&CANTXIDR0))) = (dword)frame.id << (5+16); // Load in ID of message as a 32bit dword (TXIDR0 - TXIDR3)
+    *((dword*)((dword)(&CANTXIDR0))) = (dword)frame->id << (5+16); // Load in ID of message as a 32bit dword (TXIDR0 - TXIDR3)
     
     // Truncate length to 0-8 bytes
     // Most CAN controllers will assume 8 bytes of data if message length value is >8
-    if(frame.length > 8) frame.length = 8;
+    if(frame->length > 8) frame->length = 8;
     
     // Copy payload data to data segment registers (memory mapped in sequential order)
-    for(i=0; i<frame.length; i++)
-        *(&CANTXDSR0 + i) = frame.payload[i];
+    for(i=0; i<frame->length; i++)
+        *(&CANTXDSR0 + i) = frame->payload[i];
     
-    CANTXDLR = frame.length;
-    CANTXTBPR = frame.priority;
+    CANTXDLR = frame->length;
+    CANTXTBPR = frame->priority;
     
     CANTFLG = txbuffer;     // Release tx buffer for transmission by clearing the associated flag
     while((CANTFLG & txbuffer) != txbuffer);    // Wait for transmission to complete
@@ -141,12 +141,15 @@ void data_used(void) {
 interrupt VectorNumber_Vcanrx
 void CANreceiveISR(void) {
     byte length, i;
+    word timestamp;
     
     length = CANRXDLR_DLC;  // Length is 4 bits, max value of 8
     
     // Copy out payload data (data segment registers memory mapped in sequential order)
     for(i=0; i<length; i++)
         rxbuffer[i] = *(&CANRXDSR0 + i);
+    
+    timestamp = (CANTXTSRH << 8) | CANTXTSRL;
     
     data_available_flag = 1;
     CANRFLG = CANRFLG_RXF_MASK; // Clear RXF flag to release rx buffer
