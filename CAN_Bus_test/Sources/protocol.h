@@ -1,6 +1,6 @@
 /* Elevator CAN node IDs */
-#ifndef _ELEVATOR_H
-#define _ELEVATOR_H
+#ifndef _PROTOCOL_H
+#define _PROTOCOL_H
 
 #define MSCAN_CTL_ID    0x0001  // Controller node ID
 #define MSCAN_CAR_ID    0x0002  // Elevator car node ID
@@ -52,4 +52,4 @@
 #define ERROR_CLR           0x00
 #define ERROR_GENERAL       0x01
 
-#endif // _ELEVATOR_H
+#endif // _PROTOCOL_H

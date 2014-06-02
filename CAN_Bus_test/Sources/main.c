@@ -9,8 +9,8 @@
 #include "derivative.h"
 #include "timer.h"      // msleep()
 #include "mscan.h"
-#include "lcd.h"        // LCD functions
-#include "elevator.h"   // CAN node IDs
+#include "lcd.h"
+#include "protocol.h"   // CAN node IDs and payload data IDs
 
 #define LED1    PTS_PTS2
 #define LED2    PTS_PTS3
@@ -21,24 +21,9 @@ void callbox(void);
 
 
 void main(void) {
-    /*
-    byte ret;
-    byte sw1_pressed = 0, sw2_pressed = 0;
-    
-    // Message 1 for controller
-    word id1 = MSCAN_CTL_ID;
-    byte priority1 = 0x01;
-    byte data1[] = "MSG1 ";
-    
-    // Message 2 for car
-    word id2 = MSCAN_CAR_ID;
-    byte priority2 = 0x01;
-    byte data2[] = "MSG2 ";
-    */
     
     DDRS_DDRS2 = 1; DDRS_DDRS3 = 1; // Enable LEDs
     DDRJ_DDRJ6 = 0; DDRJ_DDRJ7 = 0; // Enable switches
-    
     
     timer_init();
     CANinit(MSCAN_NODE_ID);
@@ -53,43 +38,6 @@ void main(void) {
     
     for(;;) {
         callbox();
-        
-        /*
-        if(SW1 && !sw1_pressed) {
-            sw1_pressed = 1;
-            LED1 = 1;
-            
-            ret = CANsend(id1, priority1, sizeof(data1)-1, data1);
-            if(ret) {
-                // Message could not be sent!
-            }
-            
-            data1[4]++;
-        }
-        if(SW2 && !sw2_pressed) {
-            sw2_pressed = 1;
-            LED2 = 1;
-            
-            ret = CANsend(id2, priority2, sizeof(data2)-1, data2);
-            if(ret) {
-                // Message could not be sent!
-            }
-            
-            data2[4]++;
-        }
-        if(!SW1) {
-            sw1_pressed = 0;
-            LED1 = 0;
-        }
-        if(!SW2) {
-            sw2_pressed = 0;
-            LED2 = 0;
-        }
-        
-        CANget(data);
-        LCDhome();
-        LCDprintf("%s", data);
-        */
     }
 }
 
@@ -100,25 +48,29 @@ void main(void) {
 void callbox(void) {
     byte ret;
     byte sw1_pressed = 0, sw2_pressed = 0;
-    dataMessage message;
     char *command, *floor, *direction;
     
+    CANframe txframe1, txframe2;    // Transmitted CAN frames
+    dataMessage rxmessage;          // Received data payload
+    
     // Message to floor 1 callbox; direction up
-    word id1 = MSCAN_FL1_ID;
-    byte priority1 = 0x01;
-    byte data1[3] = {CMD_LOCATION, FLOOR1, DIRECTION_UP};
+    txframe1.id = MSCAN_FL1_ID;
+    txframe1.priority = 0x01;
+    txframe1.length = 3;
+    txframe1.payload = {CMD_LOCATION, FLOOR1, DIRECTION_UP};
     
     // Message to floor 1 callbox; direction down
-    word id2 = MSCAN_FL1_ID;
-    byte priority2 = 0x01;
-    byte data2[3] = {CMD_LOCATION, FLOOR1, DIRECTION_DOWN};
+    txframe2.id = MSCAN_FL1_ID;
+    txframe2.priority = 0x01;
+    txframe2.length = 3;
+    txframe2.payload = {CMD_LOCATION, FLOOR1, DIRECTION_DOWN};
     
     
     if(SW1 && !sw1_pressed) {
         sw1_pressed = 1;
         LED1 = 1;
         
-        ret = CANsend(id1, priority1, sizeof(data1), data1);
+        ret = CANsend(&txframe1);
         if(ret) {
             // Message could not be sent!
         }
@@ -127,7 +79,7 @@ void callbox(void) {
         sw2_pressed = 1;
         LED2 = 1;
         
-        ret = CANsend(id2, priority2, sizeof(data2), data2);
+        ret = CANsend(&txframe2);
         if(ret) {
             // Message could not be sent!
         }
@@ -143,10 +95,10 @@ void callbox(void) {
     
     if(data_available()) {
     
-        CANget(&message);
+        CANget(&rxmessage);
         data_used();
         
-        switch(message.command) {
+        switch(rxmessage.command) {
             case CMD_LOCATION:
                 command = "Loc";
                 break;
@@ -167,7 +119,7 @@ void callbox(void) {
                 goto cmd_error;
         }
         
-        switch(message.data_byte1) {
+        switch(rxmessage.data_byte1) {
             case FLOOR1:
                 floor = "1";
                 break;
@@ -182,7 +134,7 @@ void callbox(void) {
                 goto cmd_error;
         }
         
-        switch(message.data_byte2) {
+        switch(rxmessage.data_byte2) {
             case DIRECTION_UP:
                 direction = "Up";
                 break;

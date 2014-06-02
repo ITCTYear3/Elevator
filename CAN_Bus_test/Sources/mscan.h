@@ -5,7 +5,8 @@
 #include "utils.h"
 
 // Data message structure for payload data
-typedef struct {
+typedef struct
+{
     byte command;   // First byte determines what the remaining bytes signify
     byte data_byte1;
     byte data_byte2;
@@ -15,6 +16,15 @@ typedef struct {
     byte data_byte6;
     byte data_byte7;
 } dataMessage;
+
+// CAN frame structure
+typedef struct
+{
+    word id;    // 11bits usable for CAN frame ID
+    byte priority;
+    byte length;
+    dataMessage payload;
+} CANframe;
 
 
 #define PAYLOAD_SIZE    8   // Max of 8 bytes of data per CAN frame
@@ -118,9 +128,9 @@ typedef struct {
 
 /*****************************************************************************/
 
-void CANinit(word);
-byte CANsend(word, byte, byte, byte *);
-void CANget(dataMessage *);
+void CANinit(word id);
+byte CANsend(CANframe *frame);
+void CANget(dataMessage *message);
 byte data_available(void);
 void data_used(void);
 

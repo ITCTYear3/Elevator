@@ -82,7 +82,7 @@ void CANinit(word id) {
 
 /* MSCAN transmit message */
 /* non-zero return value indicates that it could not send a message */
-byte CANsend(word id, byte priority, byte length, byte *data) {
+byte CANsend(CANframe *frame) {
     byte txbuffer, i;
     
     // Check if all three tx buffers are already full (can't send message)
@@ -92,18 +92,18 @@ byte CANsend(word id, byte priority, byte length, byte *data) {
     CANTBSEL = CANTFLG;     // Select lowest tx buffer using tx buffer empty flags
     txbuffer = CANTBSEL;    // Save actual selected tx buffer to clear flag after message is constructed
     
-    *((dword*)((dword)(&CANTXIDR0))) = (dword)id << (5+16); // Load in ID of message as a 32bit dword (TXIDR0 - TXIDR3)
+    *((dword*)((dword)(&CANTXIDR0))) = (dword)frame.id << (5+16); // Load in ID of message as a 32bit dword (TXIDR0 - TXIDR3)
     
     // Truncate length to 0-8 bytes
     // Most CAN controllers will assume 8 bytes of data if message length value is >8
-    if(length > 8) length = 8;
+    if(frame.length > 8) frame.length = 8;
     
     // Copy payload data to data segment registers (memory mapped in sequential order)
-    for(i=0; i<length; i++)
-        *(&CANTXDSR0 + i) = data[i];
+    for(i=0; i<frame.length; i++)
+        *(&CANTXDSR0 + i) = frame.payload[i];
     
-    CANTXDLR = length;
-    CANTXTBPR = priority;
+    CANTXDLR = frame.length;
+    CANTXTBPR = frame.priority;
     
     CANTFLG = txbuffer;     // Release tx buffer for transmission by clearing the associated flag
     while((CANTFLG & txbuffer) != txbuffer);    // Wait for transmission to complete
