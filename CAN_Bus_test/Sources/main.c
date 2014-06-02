@@ -65,9 +65,9 @@ void callbox(void) {
     txframe2.id = MSCAN_FL1_ID;
     txframe2.priority = 0x01;
     txframe2.length = 3;
-    txframe1.payload[0] = CMD_LOCATION;
-    txframe1.payload[1] = FLOOR1;
-    txframe1.payload[2] = DIRECTION_DOWN;
+    txframe2.payload[0] = CMD_LOCATION;
+    txframe2.payload[1] = FLOOR1;
+    txframe2.payload[2] = DIRECTION_DOWN;
     
     
     if(SW1 && !sw1_pressed) {

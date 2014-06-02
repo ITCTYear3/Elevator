@@ -42,8 +42,11 @@ void CANinit(word id) {
     
     CANCTL0_TIME = 1;   // Add a 16-bit timestamp to each message
     CANCTL1_LISTEN = 0; // Cannot be in listen mode if we want to send messages
-    //CANCTL1_LOOPB = 1;  // Enable loopback for testing
+#ifdef USE_LOOPBACK
+    CANCTL1_LOOPB = 1;  // Enable loopback for testing
+#else
     CANCTL1_LOOPB = 0;  // Disable loopback for real CAN bus medium
+#endif
     
     /** Start Filtering Setup **/
     /*  Registers are combined in pairs and addressed as one 16bit word
