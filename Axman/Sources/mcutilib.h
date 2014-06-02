@@ -20,7 +20,7 @@ typedef word bitfield16;
 #define SET_BITS(var, mask)   			((var) |= (mask))
 #define CLEAR_BITS(var, mask)   		((var) &= LOW(~(mask)))
 #define FLIP_BITS(var, mask)   			((var) ^= (mask))
-#define FORCE_BITS(var, mask, value)	((var) = ((var) & LOW(~(mask))) | ((value) & (mask)))
+//#define FORCE_BITS(var, mask, value)	((var) = ((var) & LOW(~(mask))) | ((value) & (mask)))
 
 
 //#define JOIN(a,b)		a ## b
