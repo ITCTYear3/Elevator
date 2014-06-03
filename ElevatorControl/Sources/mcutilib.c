@@ -20,6 +20,7 @@ byte ringFull(volatile RingBuf *ring) {
 	return ring->count == ring->size;
 }
 
+#pragma MESSAGE DISABLE C2705 // Possible loss of data warning
 #pragma INLINE
 void ringPut(volatile RingBuf *ring, byte value) { 
 	ring->data[(ring->head)++] = value;
@@ -147,8 +148,6 @@ unsigned char _strlen(char *str) {
  	while ( *(c++) != '\0' );
  	return c - str;
 }
-
-
 
 
 // Only accurate for BUSCLK = 8MHz.. fix this

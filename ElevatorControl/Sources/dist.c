@@ -19,7 +19,7 @@ void dist_init() {
 }
 
 word dist_read() {
-    byte i;
+    byte volatile i;    // Must be volatile or else compiler will remove the for loop below!
     
     PACNT = 0;  // Reset pulse accumulator count
     PAFLG_PAIF = 1;

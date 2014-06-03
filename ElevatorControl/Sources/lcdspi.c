@@ -9,25 +9,12 @@
 
 
 byte lcd_reg = 0;
-
-
 byte lcd_data_h;
 byte lcd_data_l;
-
-
-
 byte lcd_mode;
-
-
-            
 byte lcd_rs;
 
-
-
-
 void lcd_goto(byte rowcol);
-
-
 
 void lcd_putc(byte b) {
 
@@ -84,10 +71,6 @@ void lcd_putc(byte b) {
     }
 }
 
-
-
-            
-
 void lcd_goto(byte rowcol) {                                    
     byte cmd = rowcol & 0x0F;
     if ( rowcol & 0x10 ) {
@@ -99,16 +82,12 @@ void lcd_goto(byte rowcol) {
     lcd_rs = LCD_RS_DATA;
 }
 
-
-
-
 void lcd_clear() {                  
     lcd_rs = LCD_RS_INST;
     lcd_putc(0x01); 
     delay_ms(15);       
     lcd_rs = LCD_RS_DATA;
 }
-
 
 void lcd_home() {                   
     lcd_rs = LCD_RS_INST;
@@ -117,9 +96,6 @@ void lcd_home() {
     lcd_rs = LCD_RS_DATA;
 }
 
-
-
-
 void lcd_puts(char *s) {
     char *c;
     for ( c = s; *c != '\0'; ++c ) {
@@ -127,16 +103,10 @@ void lcd_puts(char *s) {
     }
 }
 
-
 void lcd_init() {
-
-    
     spi_init();
     
-    
-                          
     lcd_rs = LCD_RS_INST;
-    
     lcd_mode = LCD_BYTE_MODE;
 
     // Set 4bit mode
@@ -146,7 +116,7 @@ void lcd_init() {
     lcd_putc(0x30);   
     lcd_putc(0x20); 
     lcd_mode = LCD_NIBBLE_MODE;
-            
+    
     // 2 lines, 5x8 font
     lcd_putc(0x28); 
         
