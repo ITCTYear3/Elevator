@@ -42,8 +42,11 @@ void CANinit(word id) {
     
     CANCTL0_TIME = 1;   // Add a 16-bit timestamp to each message
     CANCTL1_LISTEN = 0; // Cannot be in listen mode if we want to send messages
-    //CANCTL1_LOOPB = 1;  // Enable loopback for testing
+#ifdef USE_LOOPBACK
+    CANCTL1_LOOPB = 1;  // Enable loopback for testing
+#else
     CANCTL1_LOOPB = 0;  // Disable loopback for real CAN bus medium
+#endif
     
     /** Start Filtering Setup **/
     /*  Registers are combined in pairs and addressed as one 16bit word
@@ -100,13 +103,13 @@ byte CANsend(CANframe *frame) {
     
     // Copy payload data to data segment registers (memory mapped in sequential order)
     for(i=0; i<frame->length; i++)
-        *(&CANTXDSR0 + i) = ((byte*)&(frame->payload))[i];
+        *(&CANTXDSR0 + i) = frame->payload[i];
     
     CANTXDLR = frame->length;
     CANTXTBPR = frame->priority;
     
     CANTFLG = txbuffer;     // Release tx buffer for transmission by clearing the associated flag
-    while((CANTFLG & txbuffer) != txbuffer);    // Wait for transmission to complete  
+    while((CANTFLG & txbuffer) != txbuffer);    // Wait for transmission to complete
     
     return 0;
 }
@@ -141,12 +144,15 @@ void data_used(void) {
 interrupt VectorNumber_Vcanrx
 void CANreceiveISR(void) {
     byte length, i;
+    word timestamp;
     
     length = CANRXDLR_DLC;  // Length is 4 bits, max value of 8
     
     // Copy out payload data (data segment registers memory mapped in sequential order)
     for(i=0; i<length; i++)
         rxbuffer[i] = *(&CANRXDSR0 + i);
+    
+    timestamp = (CANTXTSRH << 8) | CANTXTSRL;
     
     data_available_flag = 1;
     CANRFLG = CANRFLG_RXF_MASK; // Clear RXF flag to release rx buffer

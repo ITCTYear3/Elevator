@@ -71,19 +71,20 @@ void update_floor(byte f) {
   txframe.id = MSCAN_CAR_ID;
   txframe.priority = 0x01;
   txframe.length = 3;
-  txframe.payload.command = CMD_LOCATION;
-  txframe.payload.data_byte1 = f;
-  txframe.payload.data_byte2 = DIRECTION_STATIONARY;  		
-	CANsend(&txframe);	
+  txframe.payload[0] = CMD_LOCATION;
+  txframe.payload[1] = f;
+  txframe.payload[2] = DIRECTION_STATIONARY;  		
+	CANsend(&txframe);
+		
 	
 	// Notify call boxes
 	for ( i = 0; i < N_FLOORS; ++i ) { 	
-    txframe.id = MSCAN_FL1_ID + i;
+    txframe.id = MSCAN_FL1_ID << i;
     txframe.priority = 0x01;
     txframe.length = 3;
-    txframe.payload.command = CMD_LOCATION;
-    txframe.payload.data_byte1 = f;
-    txframe.payload.data_byte2 = DIRECTION_STATIONARY;   		
+    txframe.payload[0] = CMD_LOCATION;
+    txframe.payload[1] = f;
+    txframe.payload[2] = DIRECTION_STATIONARY;  	
     CANsend(&txframe);		 			
 	}    
 }
@@ -196,7 +197,7 @@ void main() {
       CANget(&rxmessage);
       data_used();
       
-      switch(rxmessage.command) {
+     switch(rxmessage.payload[0]) {
           case CMD_LOCATION:
               command = "Loc";
               break;
@@ -217,7 +218,7 @@ void main() {
               goto cmd_error;
       }
       
-      switch(rxmessage.data_byte1) {
+      switch(rxmessage.payload[1]) {
           case FLOOR1:
               floor = "1";
               break;
@@ -232,13 +233,16 @@ void main() {
               goto cmd_error;
       }
       
-      switch(rxmessage.data_byte2) {
-          case BUTTON_UP:
+      switch(rxmessage.payload[2]) {
+          case DIRECTION_UP:
               direction = "Up";
               break;
-          case BUTTON_DOWN:
+          case DIRECTION_DOWN:
               direction = "Down";
-              break;	 	            
+              break;
+          case DIRECTION_STATIONARY:
+              direction = "Static";
+              break;
           default:
               // Command didn't match known commands!
               goto cmd_error;

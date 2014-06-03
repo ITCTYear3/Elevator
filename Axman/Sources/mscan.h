@@ -4,29 +4,6 @@
 
 #include "utils.h"
 
-// Data message structure for payload data
-typedef struct
-{
-    byte command;   // First byte determines what the remaining bytes signify
-    byte data_byte1;
-    byte data_byte2;
-    byte data_byte3;
-    byte data_byte4;
-    byte data_byte5;
-    byte data_byte6;
-    byte data_byte7;
-} dataMessage;
-
-// CAN frame structure
-typedef struct
-{
-    word id;    // 11bits usable for CAN frame ID
-    byte priority;
-    byte length;
-    dataMessage payload;
-} CANframe;
-
-
 #define PAYLOAD_SIZE    8   // Max of 8 bytes of data per CAN frame
 
 // MSCAN module clock source
@@ -126,7 +103,20 @@ typedef struct
 #define MSCAN_ACC_8_8       0x02    // Eight 8bit acceptance filters
 #define MSCAN_ACC_CLOSED    0x03    // Filter closed; no message is copied into receive foreground buffer, RXF flag is never set
 
-/*****************************************************************************/
+
+// Data message structure for payload data
+typedef struct {
+    byte payload[PAYLOAD_SIZE];
+} dataMessage;
+
+// CAN frame structure
+typedef struct {
+    word id;    // 11bits usable for CAN frame ID
+    byte priority;
+    byte length;
+    byte payload[PAYLOAD_SIZE]; // First byte in payload determines what the remaining bytes signify
+} CANframe;
+
 
 void CANinit(word id);
 byte CANsend(CANframe *frame);

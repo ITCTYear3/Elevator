@@ -8,7 +8,9 @@
 #define MSCAN_FL2_ID    0x0008  // Floor 2 callbox node ID
 #define MSCAN_FL3_ID    0x0010  // Floor 3 callbox node ID
 
-#define MSCAN_NODE_ID   MSCAN_CTL_ID    // Local node ID (unique to each node)
+#define MSCAN_NODE_ID   MSCAN_FL1_ID    // Local node ID (unique to each node)
+
+//#define USE_LOOPBACK    // Will setup for loopback mode when defined
 
 /*
  * Command structure
