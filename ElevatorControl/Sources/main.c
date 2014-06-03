@@ -94,22 +94,13 @@ void main(void) {
 void update_floor(byte floor) {
     CANframe txframe;
     
-    // Notify car
-    txframe.id = MSCAN_CAR_ID;
+    // Notify elevator car and call boxes
+    txframe.id = (MSCAN_CAR_ID | MSCAN_FL1_ID | MSCAN_FL2_ID | MSCAN_FL3_ID);
     txframe.priority = 0x01;
     txframe.length = 3;
     txframe.payload[0] = CMD_LOCATION;
     txframe.payload[1] = floor;
-    txframe.payload[2] = DIRECTION_STATIONARY;
-    CANsend(&txframe);
-    
-    // Notify call boxes
-    txframe.id = (MSCAN_FL1_ID | MSCAN_FL2_ID | MSCAN_FL3_ID);
-    txframe.priority = 0x01;
-    txframe.length = 3;
-    txframe.payload[0] = CMD_LOCATION;
-    txframe.payload[1] = floor;
-    txframe.payload[2] = DIRECTION_STATIONARY;
+    txframe.payload[2] = DIRECTION_STATIONARY;  // Just set to stationary for now, this will change later
     CANsend(&txframe);
 }
 
@@ -279,7 +270,7 @@ void callbox(byte my_floor) {
                 direction = rxmessage[2];
                 
                 LCDclear();
-                LCDprintf("Floor: %s\nDir: %s", floor, direction);
+                LCDprintf("Floor: %d\nDir: %d", floor, direction);
                 break;
             case CMD_ERROR:
                 LCDclear();
