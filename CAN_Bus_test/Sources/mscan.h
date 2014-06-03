@@ -104,11 +104,6 @@
 #define MSCAN_ACC_CLOSED    0x03    // Filter closed; no message is copied into receive foreground buffer, RXF flag is never set
 
 
-// Data message structure for payload data
-typedef struct {
-    byte payload[PAYLOAD_SIZE];
-} dataMessage;
-
 // CAN frame structure
 typedef struct {
     word id;    // 11bits usable for CAN frame ID
@@ -120,8 +115,7 @@ typedef struct {
 
 void CANinit(word id);
 byte CANsend(CANframe *frame);
-void CANget(dataMessage *message);
+void CANget(byte *data);
 byte data_available(void);
-void data_used(void);
 
 #endif // _MSCAN_H

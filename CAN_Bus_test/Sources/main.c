@@ -51,7 +51,7 @@ void callbox(void) {
     char *command, *floor, *direction;
     
     CANframe txframe1, txframe2;    // Transmitted CAN frames
-    dataMessage rxmessage;          // Received data payload
+    byte rxmessage[PAYLOAD_SIZE];   // Received data payload
     
     // Message to floor 1 callbox; direction up
     txframe1.id = MSCAN_FL1_ID;
@@ -98,11 +98,10 @@ void callbox(void) {
     }
     
     if(data_available()) {
-    
-        CANget(&rxmessage);
-        data_used();
         
-        switch(rxmessage.payload[0]) {
+        CANget(rxmessage);
+        
+        switch(rxmessage[0]) {
             case CMD_LOCATION:
                 command = "Loc";
                 break;
@@ -123,7 +122,7 @@ void callbox(void) {
                 goto cmd_error;
         }
         
-        switch(rxmessage.payload[1]) {
+        switch(rxmessage[1]) {
             case FLOOR1:
                 floor = "1";
                 break;
@@ -138,7 +137,7 @@ void callbox(void) {
                 goto cmd_error;
         }
         
-        switch(rxmessage.payload[2]) {
+        switch(rxmessage[2]) {
             case DIRECTION_UP:
                 direction = "Up";
                 break;

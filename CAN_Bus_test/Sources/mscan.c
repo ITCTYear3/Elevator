@@ -19,6 +19,7 @@ static byte volatile data_available_flag = 0;
 
 /* Initialize CAN bus */
 /* Only call this once during startup! */
+/* Currently configured to 1Mbit/s bitrate */
 void CANinit(word id) {
     CANCTL1_CANE = 1;   // Enable the MSCAN module (write once)
     
@@ -114,14 +115,15 @@ byte CANsend(CANframe *frame) {
     return 0;
 }
 
-/* Fill a dataMessage struct with payload data */
-void CANget(dataMessage *message) {
+/* Fill a byte array with payload data */
+void CANget(byte *data) {
     byte i;
     
     DisableInterrupts;
     for(i=0; i<PAYLOAD_SIZE; i++) {
-        *((byte*)message + i) = rxbuffer[i];
+        *(data + i) = rxbuffer[i];
     }
+    data_available_flag = 0;
     EnableInterrupts;
 }
 
@@ -130,14 +132,6 @@ byte data_available(void) {
     return data_available_flag;
 }
 
-/* Clear the data available flag */
-void data_used(void) {
-    DisableInterrupts;
-    data_available_flag = 0;
-    EnableInterrupts;
-}
-
-/*****************************************************************************/
 
 /* MSCAN receiver interrupt */
 // currently just writes data into a buffer and overwrites it each time there is a new message
@@ -152,7 +146,7 @@ void CANreceiveISR(void) {
     for(i=0; i<length; i++)
         rxbuffer[i] = *(&CANRXDSR0 + i);
     
-    timestamp = (CANTXTSRH << 8) | CANTXTSRL;
+    timestamp = (CANTXTSRH << 8) | CANTXTSRL;   // Timestamp not used at the moment
     
     data_available_flag = 1;
     CANRFLG = CANRFLG_RXF_MASK; // Clear RXF flag to release rx buffer
