@@ -5,7 +5,7 @@
 
 #include "leds.h"
 
-#include "lcd.h"
+#include "lcdspi.h"
 
 //#include "adc.h"
 
@@ -167,7 +167,7 @@ void main() {
 			update_lcd = 1;
 			cycle_count = 0;
 		}	
-		/*	   	
+			   	
 		if ( update_lcd ) {
 		
 		
@@ -188,7 +188,7 @@ void main() {
 				lcd_puts(buf+1);
 			}
 		}
-		 */
+		 
 		
 		
 		
