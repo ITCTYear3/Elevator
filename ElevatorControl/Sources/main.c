@@ -7,13 +7,12 @@
 
 #include <hidef.h>
 #include "derivative.h"
+#include "protocol.h"   // CAN node IDs and payload data IDs 
 #include "timer.h"      // msleep()
 #include "mscan.h"
-#include "lcd.h"        
+#include "lcd.h"
 #include "lcdspi.h"
-#include "protocol.h"   // CAN node IDs and payload data IDs     
-
-#include "dist.h"   
+#include "dist.h"
 #include "led7.h"
 #include "mcutilib.h"
 
@@ -22,34 +21,37 @@
 #define SW1     !PTJ_PTJ6
 #define SW2     !PTJ_PTJ7
 
+#define CM_PER_FLOOR 15
 
-// Define the type of node here
-#define   MSCAN_NODE_ID     MSCAN_CTL_ID             
-//#define   MSCAN_NODE_ID     MSCAN_CAR_ID
-//#define   MSCAN_NODE_ID     MSCAN_FL1_ID   
-//#define   MSCAN_NODE_ID     MSCAN_FL2_ID
-//#define   MSCAN_NODE_ID     MSCAN_FL3_ID
+// Set local node ID (unique to each node)
+#define MSCAN_NODE_ID   MSCAN_CTL_ID
+//#define MSCAN_NODE_ID   MSCAN_CAR_ID
+//#define MSCAN_NODE_ID   MSCAN_FL1_ID
+//#define MSCAN_NODE_ID   MSCAN_FL2_ID
+//#define MSCAN_NODE_ID   MSCAN_FL3_ID
 
+#if MSCAN_NODE_ID == MSCAN_CTL_ID
 
-
-#if MSCAN_NODE_ID & MSCAN_CTL_ID
-                                 
     void controller(void);
-    #define RUN() controller();
+    #define RUN()   controller();
 
-#elif MSCAN_NODE_ID & MSCAN_CAR_ID    
-                                    
-    void car(void);       
-    #define RUN() car();
+#elif MSCAN_NODE_ID == MSCAN_CAR_ID    
 
-#elif MSCAN_NODE_ID & (MSCAN_FL1_ID | MSCAN_FL2_ID | MSCAN_FL2_ID)
+    void car(void);
+    #define RUN()   car();
 
-    void callbox(void);   
-    #define RUN() callbox();
+#elif MSCAN_NODE_ID == (MSCAN_FL1_ID | MSCAN_FL2_ID | MSCAN_FL2_ID)
+
+    void callbox(byte my_floor);
+    #if MSCAN_NODE_ID == MSCAN_FL1_ID
+        #define RUN()   callbox(FLOOR1);
+    #elif MSCAN_NODE_ID == MSCAN_FL2_ID
+        #define RUN()   callbox(FLOOR2);
+    #elif MSCAN_NODE_ID == MSCAN_FL3_ID
+        #define RUN()   callbox(FLOOR3);
+    #endif
 
 #endif
-
-
 
 
 void main(void) {
@@ -66,8 +68,6 @@ void main(void) {
     msleep(16); // wait 16ms before init LCD
     LCDinit();  // initialize LCD, cursor should be visible with blink after
     
-    
-    
     dist_init();
     
     led7_init();
@@ -75,260 +75,85 @@ void main(void) {
     
     lcd_init();
     
-    delay_ms(500);
-    
-    
     EnableInterrupts;
     
     for(;;) {
-    
-      RUN();
-      
+        RUN();
     }
 }
 
 /*
- * Callbox functionality
- * Watch for button presses, and accept elevator location messages
+ * Transmits the floor that the current elevator car is on
+ * to the internal panel and to each call box
  */
-void callbox(void) {
-    byte ret;
-    byte sw1_pressed = 0, sw2_pressed = 0;
-    char *command, *floor, *direction;
+#pragma MESSAGE DISABLE C1420
+void update_floor(byte floor) {
+    CANframe txframe;
     
-    CANframe txframe1, txframe2;    // Transmitted CAN frames
-    byte rxmessage[PAYLOAD_SIZE];   // Received data payload
-    
-    // Message to floor 1 callbox; direction up
-    txframe1.id = MSCAN_FL1_ID;
-    txframe1.priority = 0x01;
-    txframe1.length = 3;
-    txframe1.payload[0] = CMD_LOCATION;
-    txframe1.payload[1] = FLOOR1;
-    txframe1.payload[2] = DIRECTION_UP;
-    
-    // Message to floor 1 callbox; direction down
-    txframe2.id = MSCAN_FL1_ID;
-    txframe2.priority = 0x01;
-    txframe2.length = 3;
-    txframe2.payload[0] = CMD_LOCATION;
-    txframe2.payload[1] = FLOOR1;
-    txframe2.payload[2] = DIRECTION_DOWN;
-    
-    
-    if(SW1 && !sw1_pressed) {
-        sw1_pressed = 1;
-        LED1 = 1;
-        
-        ret = CANsend(&txframe1);
-        if(ret) {
-            // Message could not be sent!
-        }
-    }
-    if(SW2 && !sw2_pressed) {
-        sw2_pressed = 1;
-        LED2 = 1;
-        
-        ret = CANsend(&txframe2);
-        if(ret) {
-            // Message could not be sent!
-        }
-    }
-    if(!SW1) {
-        sw1_pressed = 0;
-        LED1 = 0;
-    }
-    if(!SW2) {
-        sw2_pressed = 0;
-        LED2 = 0;
-    }
-    
-    if(data_available()) {
-        
-        CANget(rxmessage);
-        
-        switch(rxmessage[0]) {
-            case CMD_LOCATION:
-                command = "Loc";
-                break;
-            case CMD_BUTTON_CALL:
-                command = "Call";
-                break;
-            case CMD_BUTTON_CAR:
-                command = "Car";
-                break;
-            case CMD_DISP_APPEND:
-                command = "Disp";
-                break;
-            case CMD_ERROR:
-                command = "Err";
-                break;
-            default:
-                // Command didn't match known commands!
-                goto cmd_error;
-        }
-        
-        switch(rxmessage[1]) {
-            case FLOOR1:
-                floor = "1";
-                break;
-            case FLOOR2:
-                floor = "2";
-                break;
-            case FLOOR3:
-                floor = "3";
-                break;
-            default:
-                // Command didn't match known commands!
-                goto cmd_error;
-        }
-        
-        switch(rxmessage[2]) {
-            case DIRECTION_UP:
-                direction = "Up";
-                break;
-            case DIRECTION_DOWN:
-                direction = "Down";
-                break;
-            case DIRECTION_STATIONARY:
-                direction = "Static";
-                break;
-            default:
-                // Command didn't match known commands!
-                goto cmd_error;
-        }
-        
-        LCDhome();
-        LCDclear();
-        LCDprintf("Command: %s\nFloor%s Dir: %s", command, floor, direction);
-        
-        return;
-        
-cmd_error:
-        LCDhome();
-        LCDclear();
-        LCDprintf("Error in\ncommand");
-    }
-}
-
-
-
-
-
-
-
-#define N_FLOORS 3
-
-// Transmits the floor that the current elevator car is on
-// to the internal panel and to each call box
-
-void update_floor(byte f) {
-
-  byte i;            
-  CANframe txframe;
-
     // Notify car
-  txframe.id = MSCAN_CAR_ID;
-  txframe.priority = 0x01;
-  txframe.length = 3;
-  txframe.payload[0] = CMD_LOCATION;
-  txframe.payload[1] = f;
-  txframe.payload[2] = DIRECTION_STATIONARY;        
-    CANsend(&txframe);
-        
-
-    // Notify call boxes
-    for ( i = 0; i < N_FLOORS; ++i ) {
-    txframe.id = MSCAN_FL1_ID << i;
+    txframe.id = MSCAN_CAR_ID;
     txframe.priority = 0x01;
     txframe.length = 3;
     txframe.payload[0] = CMD_LOCATION;
-    txframe.payload[1] = f;
+    txframe.payload[1] = floor;
     txframe.payload[2] = DIRECTION_STATIONARY;
-    CANsend(&txframe);                  
-    }
+    CANsend(&txframe);
+    
+    // Notify call boxes
+    txframe.id = (MSCAN_FL1_ID | MSCAN_FL2_ID | MSCAN_FL3_ID);
+    txframe.priority = 0x01;
+    txframe.length = 3;
+    txframe.payload[0] = CMD_LOCATION;
+    txframe.payload[1] = floor;
+    txframe.payload[2] = DIRECTION_STATIONARY;
+    CANsend(&txframe);
 }
 
-
-
-
-
-
-#define CM_PER_FLOOR 15
-
-word car_height;
-byte cur_floor;
-
+/*
+ * Controller functionality
+ * - Send elevator location messages to callboxes
+ * - Listen for button press messages
+ */
 void controller() {
-
-    byte ret;
-  byte sw1_pressed = 0, sw2_pressed = 0;
-  char *command, *floor, *direction;
-
-  //CANframe txframe1, txframe2;    // Transmitted CAN frames
-    byte rxmessage[PAYLOAD_SIZE];   // Received data payload
+    byte sw1_pressed = 0, sw2_pressed = 0;
+    char *command, *floor, *direction;
     
+    byte rxmessage[PAYLOAD_SIZE];   // Received data payload    
     
-    byte update_lcd;
-    byte cycle_count;
-
-    //byte i;
-    word d;
+    byte update_lcd = 1;
+    byte cycle_count = 0;
+    word car_height;
+    byte cur_floor;
+    word distance;
     char buf[64];
     
-    //adc_init();        
-
-    //leds_init();
-    
-    
-    //CANinit(1);     
-    //CANinit(MSCAN_NODE_ID);
-    
-     
-                   
-    lcd_clear();
-    lcd_home(); 
-                       
-
-    cycle_count = 0;                   
-                       
-    update_lcd = 1;
-
-
     for(;;) {
-    
-        d = dist_read();
-        if ( d > (7*5*CM_PER_FLOOR) ) {
+        distance = dist_read();
+        if ( distance > (7*5*CM_PER_FLOOR) ) {
             car_height = 999;
             cur_floor = 0;
             led7_write(led7_bars[1]);
         } else {
-            car_height = (10*d)/4;      
+            car_height = (10*distance)/4;
             cur_floor = 1 + ((car_height / 10) / CM_PER_FLOOR);
-            led7_write(led7_table[cur_floor]);  
-            update_floor(cur_floor);   
+            led7_write(led7_table[cur_floor]);
+            update_floor(cur_floor);
         }
-        
         
         cycle_count++;
         
-        if ( cycle_count == 10 ) {                                          
+        if ( cycle_count == 10 ) {
             update_lcd = 1;
             cycle_count = 0;
-        }   
-              
+        }
+        
         if ( update_lcd ) {
-        
-        
             update_lcd = 0;
-
-            if ( cur_floor == 0 ) {    
-                           
+            
+            if ( cur_floor == 0 ) {
                 lcd_goto(0x00);
                 lcd_puts("No car   ");
-                
-            } else {    
-
+            } else {
                 itoa(car_height, 10, 3, "", buf);   
                 lcd_goto(0x00);
                 lcd_puts(buf);
@@ -337,71 +162,57 @@ void controller() {
                 lcd_puts(buf+1);
             }
         }
-         
-        
-        
         
         if(data_available()) {
-
-      CANget(rxmessage);
-        
-        switch(rxmessage[0]) {
-            case CMD_LOCATION:
-                command = "Loc";
-                break;
-            case CMD_BUTTON_CALL:
-                command = "Call";
-                break;
-            case CMD_BUTTON_CAR:
-                command = "Car";
-                break;
-            case CMD_DISP_APPEND:
-                command = "Disp";
-                break;
-            case CMD_ERROR:
-                command = "Err";
-                break;
-            default:
-                // Command didn't match known commands!
-                goto cmd_error;
-        }
-        
-        switch(rxmessage[1]) {
-            case FLOOR1:
-                floor = "1";
-                break;
-            case FLOOR2:
-                floor = "2";
-                break;
-            case FLOOR3:
-                floor = "3";
-                break;
-            default:
-                // Command didn't match known commands!
-                goto cmd_error;
-        }
-        
-        switch(rxmessage[2]) {
-            case DIRECTION_UP:
-                direction = "Up";
-                break;
-            case DIRECTION_DOWN:
-                direction = "Down";
-                break;
-            case DIRECTION_STATIONARY:
-                direction = "Static";
-                break;
-            default:
-                // Command didn't match known commands!
-                goto cmd_error;
-        }
-      
-      //LCDhome();
-      //LCDclear();
-      //LCDprintf("Command: %s\nFloor%s Dir: %s", command, floor, direction);
-
-      lcd_home();
-      lcd_clear();
+            
+            CANget(rxmessage);
+            
+            switch(rxmessage[0]) {
+                case CMD_BUTTON_CALL:
+                    command = "Call";
+                    break;
+                case CMD_BUTTON_CAR:
+                    command = "Car";
+                    break;
+                case CMD_DISP_APPEND:
+                    command = "Disp";
+                    break;
+                case CMD_ERROR:
+                    command = "Err";
+                    break;
+                default:
+                    // Command didn't match known commands!
+                    goto cmd_error;
+            }
+            
+            switch(rxmessage[1]) {
+                case FLOOR1:
+                    floor = "1";
+                    break;
+                case FLOOR2:
+                    floor = "2";
+                    break;
+                case FLOOR3:
+                    floor = "3";
+                    break;
+                default:
+                    // Command didn't match known commands!
+                    goto cmd_error;
+            }
+            
+            switch(rxmessage[2]) {
+                case BUTTON_UP:
+                    direction = "Up";
+                    break;
+                case BUTTON_DOWN:
+                    direction = "Down";
+                    break;
+                default:
+                    // Command didn't match known commands!
+                    goto cmd_error;
+            }
+            
+            lcd_clear();
             lcd_puts("Cmd: ");
             lcd_puts(command);
             lcd_puts(" Floor: ");
@@ -410,31 +221,87 @@ void controller() {
             lcd_goto(0x10);
             lcd_puts("Dir: ");
             lcd_puts(direction);
-
-
+            
             return;
-
-    cmd_error:
-      //LCDhome();
-      //LCDclear();
-      //LCDprintf("Error in\ncommand");
-
-
-      lcd_home();
-      lcd_clear();
-            lcd_puts("Error in command");  
-
-      }
-
-
+            
+cmd_error:
+            lcd_clear();
+            lcd_puts("Error in command");
+        }
         delay_ms(10);
-
-
-
     }
-
-
-
 }
 
-
+/*
+ * Callbox functionality
+ * - Listen for button presses, and accept elevator location messages
+ */
+void callbox(byte my_floor) {
+    byte ret;
+    byte sw1_pressed = 0, sw2_pressed = 0;
+    CANframe txframe;               // Transmitted CAN frame
+    byte rxmessage[PAYLOAD_SIZE];   // Received data payload
+    static byte floor, direction;
+    
+    floor = my_floor;                   // Assume starting floor is at this callbox floor
+    direction = DIRECTION_STATIONARY;   // Assume starting car direction is stationary
+    
+    if(SW1 && !sw1_pressed) {
+        sw1_pressed = 1;
+        LED1 = 1;
+        
+        // Message to controller; up button pressed
+        txframe.id = MSCAN_CTL_ID;
+        txframe.priority = 0x01;
+        txframe.length = 3;
+        txframe.payload[0] = CMD_BUTTON_CALL;
+        txframe.payload[1] = my_floor;
+        txframe.payload[2] = BUTTON_UP;
+        
+        ret = CANsend(&txframe);
+        if(ret) {
+            // Message could not be sent!
+        }
+    }
+    if(SW2 && !sw2_pressed) {
+        sw2_pressed = 1;
+        LED2 = 1;
+        
+        // Message to controller; down button pressed
+        txframe.id = MSCAN_CTL_ID;
+        txframe.priority = 0x01;
+        txframe.length = 3;
+        txframe.payload[0] = CMD_BUTTON_CALL;
+        txframe.payload[1] = my_floor;
+        txframe.payload[2] = BUTTON_DOWN;
+        
+        ret = CANsend(&txframe);
+        if(ret) {
+            // Message could not be sent!
+        }
+    }
+    
+    if(!SW1 && (floor == my_floor)) sw1_pressed = 0;
+    if(!SW2 && (floor == my_floor)) sw2_pressed = 0;
+    
+    if(data_available()) {
+        
+        CANget(rxmessage);
+        
+        switch(rxmessage[0]) {
+            case CMD_LOCATION:
+                floor = rxmessage[1];
+                direction = rxmessage[2];
+                break;
+            case CMD_ERROR:
+                // Error condition received!
+                break;
+            default:
+                // Command didn't match known commands!
+                break;
+        }
+        
+        LCDclear();
+        LCDprintf("Floor: %s\nDir: %s", floor, direction);
+    }
+}

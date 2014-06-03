@@ -7,16 +7,12 @@
 
 #define TC_SLEEP        3   // msleep function timer channel (0-7), must not conflict with other channels in use
                             // (suggest using TC3, PT3 is unconnected on controller board)
-
-// Timer modes: timer enable, fast flag clear enable, counter stop while in freeze mode
-#define TSCR1_INIT      ( TSCR1_TEN_MASK | TSCR1_TFFCA_MASK | TSCR1_TSFRZ_MASK )     
-
+ 
 #define FAST_FLAG_CLR       // Fast flag clear is enabled
 
 // Output compare TCNT deltas
-//#define OC_DELTA_1MS        1000                    // 1ms delta with prescaler of 8  
 #define OC_DELTA_1MS        8000                    // 1ms delta with prescaler of 1
-#define OC_DELTA_1US        1                       // 1us delta with prescaler of 8
+#define OC_DELTA_1US        8                       // 1us delta with prescaler of 1
 #define TIMER_DELTA(ms)     ((ms) * OC_DELTA_1MS)   // Delta to set up timer channel for next event
 
 // Output compare duty times
@@ -27,11 +23,6 @@
 
 /*****************************************************************************/
 
-#define EnableTimer     SET_BITS(TSCR1,TSCR1_TEN_MASK)
-#define DisableTimer    CLR_BITS(TSCR1,TSCR1_TEN_MASK)
-
-#define TOI_ENABLE      SET_BITS(TSCR2,TSCR2_TOI_MASK)  // Enable timer overflow interrupt
-#define TOI_DISABLE     CLR_BITS(TSCR2,TSCR2_TOI_MASK)  // Disable timer overflow interrupt
 #define TC(chan)        CAT(TC,chan)                    // Select timer channel
 #define TC_OC(chan)     SET_BITS(TIOS, 1 << (chan))     // Set channel to output compare
 #define TC_IC(chan)     CLR_BITS(TIOS, 1 << (chan))     // Set channel to input capture
@@ -50,7 +41,7 @@
 #define SET_TCNT_PRESCALE(scale)    FORCE_BITS(TSCR2,TSCR2_PR_MASK,(scale))
 #define TCNT_PRESCALE_1             0x00  // TCNT at 8MHz
 #define TCNT_PRESCALE_2             0x01  // TCNT at 4MHz
-#define TCNT_PRESCALE_4             0x02  // TCNT at 2MHz               
+#define TCNT_PRESCALE_4             0x02  // TCNT at 2MHz
 #define TCNT_PRESCALE_8             0x03  // TCNT at 1MHz
 #define TCNT_PRESCALE_16            0x04  // TCNT at 500kHz
 #define TCNT_PRESCALE_32            0x05  // TCNT at 250kHz
@@ -85,11 +76,9 @@
 #define IC_DETECT_BOTH      0x03
 #define IC_DETECT_ANY       0x03
 
-/*****************************************************************************/
 
 void timer_init(void);
 word get_overflow_count(void);
 void msleep(word);
-
 
 #endif // _TIMER_H

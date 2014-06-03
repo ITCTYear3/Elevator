@@ -7,17 +7,39 @@
 
 #include <hidef.h>
 #include "derivative.h"
+#include "protocol.h"   // CAN node IDs and payload data IDs
 #include "timer.h"      // msleep()
 #include "mscan.h"
 #include "lcd.h"
-#include "protocol.h"   // CAN node IDs and payload data IDs
 
 #define LED1    PTS_PTS2
 #define LED2    PTS_PTS3
 #define SW1     !PTJ_PTJ6
 #define SW2     !PTJ_PTJ7
 
-void callbox(void);
+// Set local node ID (unique to each node)
+#define MSCAN_NODE_ID   MSCAN_CTL_ID
+//#define MSCAN_NODE_ID   MSCAN_CAR_ID
+//#define MSCAN_NODE_ID   MSCAN_FL1_ID
+//#define MSCAN_NODE_ID   MSCAN_FL2_ID
+//#define MSCAN_NODE_ID   MSCAN_FL3_ID
+
+#if MSCAN_NODE_ID & MSCAN_CTL_ID
+
+    void controller(void);
+    #define RUN() controller();
+
+#elif MSCAN_NODE_ID & MSCAN_CAR_ID    
+
+    void car(void);
+    #define RUN() car();
+
+#elif MSCAN_NODE_ID & (MSCAN_FL1_ID | MSCAN_FL2_ID | MSCAN_FL2_ID)
+
+    void callbox(byte my_floor);
+    #define RUN() callbox();
+
+#endif
 
 
 void main(void) {
@@ -37,44 +59,37 @@ void main(void) {
     EnableInterrupts;
     
     for(;;) {
-        callbox();
+        RUN();
     }
 }
 
 /*
- * Callbox functionality
- * Watch for button presses, and accept elevator location messages
+ * Controller functionality
+ * - Send elevator location messages to callboxes
+ * - Listen for button press messages
  */
-void callbox(void) {
+void controller(void) {
     byte ret;
     byte sw1_pressed = 0, sw2_pressed = 0;
     char *command, *floor, *direction;
     
-    CANframe txframe1, txframe2;    // Transmitted CAN frames
+    CANframe txframe;               // Transmitted CAN frame
     byte rxmessage[PAYLOAD_SIZE];   // Received data payload
-    
-    // Message to floor 1 callbox; direction up
-    txframe1.id = MSCAN_FL1_ID;
-    txframe1.priority = 0x01;
-    txframe1.length = 3;
-    txframe1.payload[0] = CMD_LOCATION;
-    txframe1.payload[1] = FLOOR1;
-    txframe1.payload[2] = DIRECTION_UP;
-    
-    // Message to floor 1 callbox; direction down
-    txframe2.id = MSCAN_FL1_ID;
-    txframe2.priority = 0x01;
-    txframe2.length = 3;
-    txframe2.payload[0] = CMD_LOCATION;
-    txframe2.payload[1] = FLOOR1;
-    txframe2.payload[2] = DIRECTION_DOWN;
     
     
     if(SW1 && !sw1_pressed) {
         sw1_pressed = 1;
         LED1 = 1;
         
-        ret = CANsend(&txframe1);
+        // Message to floor 1 callbox; direction up
+        txframe.id = MSCAN_FL1_ID;
+        txframe.priority = 0x01;
+        txframe.length = 3;
+        txframe.payload[0] = CMD_LOCATION;
+        txframe.payload[1] = FLOOR1;
+        txframe.payload[2] = DIRECTION_UP;
+        
+        ret = CANsend(&txframe);
         if(ret) {
             // Message could not be sent!
         }
@@ -83,11 +98,20 @@ void callbox(void) {
         sw2_pressed = 1;
         LED2 = 1;
         
-        ret = CANsend(&txframe2);
+        // Message to floor 1 callbox; direction down
+        txframe.id = MSCAN_FL1_ID;
+        txframe.priority = 0x01;
+        txframe.length = 3;
+        txframe.payload[0] = CMD_LOCATION;
+        txframe.payload[1] = FLOOR1;
+        txframe.payload[2] = DIRECTION_DOWN;
+        
+        ret = CANsend(&txframe);
         if(ret) {
             // Message could not be sent!
         }
     }
+    
     if(!SW1) {
         sw1_pressed = 0;
         LED1 = 0;
@@ -102,9 +126,6 @@ void callbox(void) {
         CANget(rxmessage);
         
         switch(rxmessage[0]) {
-            case CMD_LOCATION:
-                command = "Loc";
-                break;
             case CMD_BUTTON_CALL:
                 command = "Call";
                 break;
@@ -138,29 +159,98 @@ void callbox(void) {
         }
         
         switch(rxmessage[2]) {
-            case DIRECTION_UP:
+            case BUTTON_UP:
                 direction = "Up";
                 break;
-            case DIRECTION_DOWN:
+            case BUTTON_DOWN:
                 direction = "Down";
-                break;
-            case DIRECTION_STATIONARY:
-                direction = "Static";
                 break;
             default:
                 // Command didn't match known commands!
                 goto cmd_error;
         }
         
-        LCDhome();
         LCDclear();
         LCDprintf("Command: %s\nFloor%s Dir: %s", command, floor, direction);
         
         return;
         
 cmd_error:
-        LCDhome();
         LCDclear();
         LCDprintf("Error in\ncommand");
+    }
+}
+
+/*
+ * Callbox functionality
+ * - Listen for button presses, and accept elevator location messages
+ */
+void callbox(byte my_floor) {
+    byte ret;
+    byte sw1_pressed = 0, sw2_pressed = 0;
+    CANframe txframe;               // Transmitted CAN frame
+    byte rxmessage[PAYLOAD_SIZE];   // Received data payload
+    static byte floor, direction;
+    
+    floor = my_floor;                   // Assume starting floor is at this callbox floor
+    direction = DIRECTION_STATIONARY;   // Assume starting car direction is stationary
+    
+    if(SW1 && !sw1_pressed) {
+        sw1_pressed = 1;
+        LED1 = 1;
+        
+        // Message to controller; up button pressed
+        txframe.id = MSCAN_CTL_ID;
+        txframe.priority = 0x01;
+        txframe.length = 3;
+        txframe.payload[0] = CMD_BUTTON_CALL;
+        txframe.payload[1] = my_floor;
+        txframe.payload[2] = BUTTON_UP;
+        
+        ret = CANsend(&txframe);
+        if(ret) {
+            // Message could not be sent!
+        }
+    }
+    if(SW2 && !sw2_pressed) {
+        sw2_pressed = 1;
+        LED2 = 1;
+        
+        // Message to controller; down button pressed
+        txframe.id = MSCAN_CTL_ID;
+        txframe.priority = 0x01;
+        txframe.length = 3;
+        txframe.payload[0] = CMD_BUTTON_CALL;
+        txframe.payload[1] = my_floor;
+        txframe.payload[2] = BUTTON_DOWN;
+        
+        ret = CANsend(&txframe);
+        if(ret) {
+            // Message could not be sent!
+        }
+    }
+    
+    if(!SW1 && (floor == my_floor)) sw1_pressed = 0;
+    if(!SW2 && (floor == my_floor)) sw2_pressed = 0;
+    
+    if(data_available()) {
+        
+        CANget(rxmessage);
+        
+        switch(rxmessage[0]) {
+            case CMD_LOCATION:
+                floor = rxmessage[1];
+                direction = rxmessage[2];
+                break;
+            case CMD_ERROR:
+                // Error condition received!
+                break;
+            default:
+                // Command didn't match known commands!
+                break;
+        }
+        
+        LCDclear();
+        LCDprintf("Floor: %s\nDir: %s", floor, direction);
     }
 }

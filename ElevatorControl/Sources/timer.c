@@ -15,45 +15,17 @@ static word volatile timer_overflow_count;
 /* Initialize timer module */
 void timer_init(void) {
     
-       
-    // Setup pulse accumulator on ch7  
-      
-    // Enable timer module
-  	TSCR1_TEN = 1;    	
-  	// Ignore WAIT mode
-  	TSCR1_TSWAI = 0;   	
-  	// Ignore freeze mode
-  	TSCR1_TSFRZ = 0;        	
-  	// Disable fast-flag clear
-  	TSCR1_TFFCA = 1;
-  	
-  	// Ch7 input capture
-  	TIOS_IOS7 = 0;
-
-    // Disble overflow interrupt
-    TSCR2_TOI = 0;        
-    // Disable counter reset
-    TSCR2_TCRE = 0;        
-    // No prescale
-    //TSCR2_PR = 0;   
-      
-             
+    TSCR1_TEN = 1;      // Enable timer module
+    TSCR1_TSWAI = 0;    // Ignore WAIT mode
+    TSCR1_TSFRZ = 1;    // Stop TCNT while in freeze mode (during debug)
+    TSCR1_TFFCA = 1;    // Use fast-flag clear mode
+    TSCR2_TOI = 0;      // Disable overflow interrupt
+    TSCR2_TCRE = 0;     // Disable TCNT reset on successful TC7 output compare event
+    SET_TCNT_PRESCALE(TCNT_PRESCALE_1); // Set timer prescaler to 1 (TCNT at 8MHz)
     
-    
-    // Setup millisecond timer
-                       
-    // TOI currently disabled due to issues with the interrupt firing too often
-    //TOI_ENABLE;                 // Enable TCNT overflow interrupt
-    
-    SET_TCNT_PRESCALE(TCNT_PRESCALE_1);     // Set timer prescaler to 8 (TCNT at 1MHz)
-    //SET_BITS(TSCR1,TSCR1_INIT);             // Set timer operation modes and enable timer
+    TIOS_IOS7 = 0;  // Ch7 input capture
     
     timer_overflow_count = 0;   // Reset overflow counter
-    
-      
-    
-    
-    
 }
 
 /* Current timer overflow count */
@@ -68,7 +40,7 @@ void msleep(word ms) {
     word i;
     
     // Enable timer module if not already enabled
-    if(!(TSCR1 & TSCR1_TEN_MASK)) EnableTimer;
+    if(!(TSCR1 & TSCR1_TEN_MASK)) TSCR1_TEN = 1;
     
     TC(TC_SLEEP) = TCNT + OC_DELTA_1MS; // Preset channel register
     TC_OC(TC_SLEEP);                    // Enable channel as output compare
@@ -79,13 +51,9 @@ void msleep(word ms) {
     }
 }
 
-
-/*****************************************************************************/
-
-
-
 /* TCNT overflow interrupt handler */
-interrupt VectorNumber_Vtimovf void TCNT_Overflow_ISR(void) {
+interrupt VectorNumber_Vtimovf
+void TCNT_Overflow_ISR(void) {
 #ifdef FAST_FLAG_CLR
     (void)TCNT;             // Clear timer overflow flag by reading TCNT (fast flag clear enabled)
 #else
@@ -94,4 +62,3 @@ interrupt VectorNumber_Vtimovf void TCNT_Overflow_ISR(void) {
     
     timer_overflow_count++;
 }
-
