@@ -1,20 +1,16 @@
-#include <hidef.h>
-#include "derivative.h"
+/* LCD module via SPI */
 
+#include <mc9s12c32.h>
 #include "mcutilib.h"
 #include "utils.h"
-
 #include "spi.h"
 #include "lcdspi.h"
-
 
 byte lcd_reg = 0;
 byte lcd_data_h;
 byte lcd_data_l;
 byte lcd_mode;
 byte lcd_rs;
-
-void lcd_goto(byte rowcol);
 
 void lcd_putc(byte b) {
 
@@ -71,28 +67,28 @@ void lcd_putc(byte b) {
     }
 }
 
-void lcd_goto(byte rowcol) {                                    
+void lcd_goto(byte rowcol) {
     byte cmd = rowcol & 0x0F;
     if ( rowcol & 0x10 ) {
         cmd += 0x40;
     }
-    cmd |= 0x80;   
+    cmd |= 0x80;
     lcd_rs = LCD_RS_INST;
-    lcd_putc(cmd);          
+    lcd_putc(cmd);
     lcd_rs = LCD_RS_DATA;
 }
 
-void lcd_clear() {                  
+void lcd_clear() {
     lcd_rs = LCD_RS_INST;
     lcd_putc(0x01); 
-    delay_ms(15);       
+    delay_ms(15);
     lcd_rs = LCD_RS_DATA;
 }
 
-void lcd_home() {                   
+void lcd_home() {
     lcd_rs = LCD_RS_INST;
-    lcd_putc(0x02);     
-    delay_ms(15);   
+    lcd_putc(0x02);
+    delay_ms(15);
     lcd_rs = LCD_RS_DATA;
 }
 
@@ -104,35 +100,35 @@ void lcd_puts(char *s) {
 }
 
 void lcd_init() {
-    spi_init();
+    if(SPICR1_SPE != 1) spi_init();
     
     lcd_rs = LCD_RS_INST;
     lcd_mode = LCD_BYTE_MODE;
-
+    
     // Set 4bit mode
     delay_ms(15);
     lcd_putc(0x30); 
-    lcd_putc(0x30);    
-    lcd_putc(0x30);   
+    lcd_putc(0x30);
+    lcd_putc(0x30);
     lcd_putc(0x20); 
     lcd_mode = LCD_NIBBLE_MODE;
     
     // 2 lines, 5x8 font
-    lcd_putc(0x28); 
-        
+    lcd_putc(0x28);
+    
     // Display off, cursor off, blink off   
     lcd_putc(0x08);
-        
+    
     // Clear screen, cursor home
-    lcd_putc(0x01); 
-    delay_ms(15);   
-        
+    lcd_putc(0x01);
+    delay_ms(15);
+    
     // Shift cursor right, don't shift screen
-    lcd_putc(0x06);     
-                 
+    lcd_putc(0x06);
+    
     // Display on
-    lcd_putc(0x0C);         
-                
+    lcd_putc(0x0C);
+    
     // Switch to data register
     lcd_rs = LCD_RS_DATA;
 }

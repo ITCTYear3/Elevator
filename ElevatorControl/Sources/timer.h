@@ -6,7 +6,7 @@
 
 
 #define TC_SLEEP        3   // msleep function timer channel (0-7), must not conflict with other channels in use
-                            // (suggest using TC3, PT3 is unconnected on controller board)
+#define TC_SLEEP2       4   // usleep function timer channel (0-7), must not conflict with other channels in use
  
 #define FAST_FLAG_CLR       // Fast flag clear is enabled
 
@@ -80,5 +80,6 @@
 void timer_init(void);
 word get_overflow_count(void);
 void msleep(word);
+void usleep(word);
 
 #endif // _TIMER_H

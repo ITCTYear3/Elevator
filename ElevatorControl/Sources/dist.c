@@ -1,9 +1,10 @@
-#include <hidef.h>
-#include "derivative.h"
+/* HC SR04 Ultrasonic Sensor */
 
-#include "timer.h"
+#include <mc9s12c32.h>
+#include "timer.h"  // usleep()
 #include "dist.h"
 
+#define TRIG_PIN    PTT_PTT6    // Using PT6 gpio pin for trigger
 
 void dist_init() {
     
@@ -14,24 +15,30 @@ void dist_init() {
     PACTL_PAOVI = 0;    // Disable overflow interrupt
     PACTL_PAI = 0;      // Disable accumulator interrupt
     
-    PTT_PTT6 = 0;
+    TIOS_IOS7 = 0;  // Ch7 input capture (echo pin)
+    
+    // Setup trigger pin gpio
     DDRT_DDRT6 = 1;
+    TRIG_PIN = 0;
 }
 
+/* Count echo pin pulse length */
 word dist_read() {
-    byte volatile i;    // Must be volatile or else compiler will remove the for loop below!
+    byte volatile i;    // Must be volatile or else compiler will optimize out the for loop below!
     
-    PACNT = 0;  // Reset pulse accumulator count
-    PAFLG_PAIF = 1;
+    PACNT = 0;      // Reset pulse accumulator count
+    PAFLG_PAIF = 1; // Clear interrupt edge flag by writing a one to it
     
     // Generate 10us trigger pulse
-    PTT_PTT6 = 1;
-    for (i=0; i<5; ++i);
-    PTT_PTT6 = 0;
+    TRIG_PIN = 1;
+    usleep(10);
+    TRIG_PIN = 0;
     
-    while ( !PAFLG_PAIF );
+    while(!PAFLG_PAIF); // Wait for falling edge
     
-    if ( PAFLG_PAOVF ) {
+    // Check in case of PACNT overflow
+    if(PAFLG_PAOVF) {
+        PAFLG_PAOVF = 1;    // Clear overflow flag by writing a one to it
         return -1;
     }
     

@@ -1,12 +1,8 @@
-										 
-
-#include <hidef.h>
-#include "derivative.h"
-
-
+/* SPI module */
+#ifndef _SPI_H
+#define _SPI_H
 
 void spi_init(void);
+void spi_write(byte data);
 
-void spi_write(byte b);
-
-
+#endif // _SPI_H

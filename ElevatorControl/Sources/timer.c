@@ -1,11 +1,6 @@
-                 
-#include <hidef.h>
-#include "derivative.h"
-
 /* Timer module functions */
 
 #include <mc9s12c32.h>
-#include "utils.h"
 #include "timer.h"
 
 
@@ -22,8 +17,6 @@ void timer_init(void) {
     TSCR2_TOI = 0;      // Disable overflow interrupt
     TSCR2_TCRE = 0;     // Disable TCNT reset on successful TC7 output compare event
     SET_TCNT_PRESCALE(TCNT_PRESCALE_1); // Set timer prescaler to 1 (TCNT at 8MHz)
-    
-    TIOS_IOS7 = 0;  // Ch7 input capture
     
     timer_overflow_count = 0;   // Reset overflow counter
 }
@@ -48,6 +41,22 @@ void msleep(word ms) {
     for(i=0; i < ms; i++) {
         while(!(TFLG1 & (1 << TC_SLEEP)));  // Wait for event
         TC(TC_SLEEP) += OC_DELTA_1MS;       // Rearm channel register, clearing TFLG as well
+    }
+}
+
+/* Microsecond sleep timer */
+void usleep(word us) {
+    word i;
+    
+    // Enable timer module if not already enabled
+    if(!(TSCR1 & TSCR1_TEN_MASK)) TSCR1_TEN = 1;
+    
+    TC(TC_SLEEP2) = TCNT + OC_DELTA_1US; // Preset channel register
+    TC_OC(TC_SLEEP2);                    // Enable channel as output compare
+    
+    for(i=0; i < us; i++) {
+        while(!(TFLG1 & (1 << TC_SLEEP2)));  // Wait for event
+        TC(TC_SLEEP2) += OC_DELTA_1US;       // Rearm channel register, clearing TFLG as well
     }
 }
 
