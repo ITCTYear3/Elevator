@@ -7,8 +7,8 @@
 
 #define TC_SLEEP        3   // msleep function timer channel (0-7), must not conflict with other channels in use
 #define TC_SLEEP2       4   // usleep function timer channel (0-7), must not conflict with other channels in use
- 
-#define FAST_FLAG_CLR       // Fast flag clear is enabled
+
+//#define FAST_FLAG_CLR       // Fast flag clear is enabled
 
 // Output compare TCNT deltas
 #define OC_DELTA_1MS        8000                    // 1ms delta with prescaler of 1

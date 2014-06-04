@@ -3,22 +3,27 @@
 #include <mc9s12c32.h>
 #include "timer.h"
 
-
-// Global timer overflow counter, updated by TCNT_Overflow_ISR interrupt handler
+// Timer overflow counter, updated by TCNT_Overflow_ISR interrupt handler
 static word volatile timer_overflow_count;
+
 
 /* Initialize timer module */
 void timer_init(void) {
     
-    TSCR1_TEN = 1;      // Enable timer module
-    TSCR1_TSWAI = 0;    // Ignore WAIT mode
-    TSCR1_TSFRZ = 1;    // Stop TCNT while in freeze mode (during debug)
+    TSCR1_TSWAI = 0;    // Continue incrementing TCNT while in WAIT mode
+    TSCR1_TSFRZ = 0;    // Continue incrementing TCNT while in freeze mode
+#ifdef FAST_FLAG_CLR
     TSCR1_TFFCA = 1;    // Use fast-flag clear mode
+#else
+    TSCR1_TFFCA = 0;
+#endif
     TSCR2_TOI = 0;      // Disable overflow interrupt
     TSCR2_TCRE = 0;     // Disable TCNT reset on successful TC7 output compare event
     SET_TCNT_PRESCALE(TCNT_PRESCALE_1); // Set timer prescaler to 1 (TCNT at 8MHz)
     
     timer_overflow_count = 0;   // Reset overflow counter
+    
+    TSCR1_TEN = 1;      // Enable timer module
 }
 
 /* Current timer overflow count */
@@ -32,9 +37,6 @@ word get_overflow_count(void) {
 void msleep(word ms) {
     word i;
     
-    // Enable timer module if not already enabled
-    if(!(TSCR1 & TSCR1_TEN_MASK)) TSCR1_TEN = 1;
-    
     TC(TC_SLEEP) = TCNT + OC_DELTA_1MS; // Preset channel register
     TC_OC(TC_SLEEP);                    // Enable channel as output compare
     
@@ -47,9 +49,6 @@ void msleep(word ms) {
 /* Microsecond sleep timer */
 void usleep(word us) {
     word i;
-    
-    // Enable timer module if not already enabled
-    if(!(TSCR1 & TSCR1_TEN_MASK)) TSCR1_TEN = 1;
     
     TC(TC_SLEEP2) = TCNT + OC_DELTA_1US; // Preset channel register
     TC_OC(TC_SLEEP2);                    // Enable channel as output compare
