@@ -40,7 +40,7 @@
     void car(void);
     #define RUN()   car();
 
-#elif MSCAN_NODE_ID & (MSCAN_FL1_ID | MSCAN_FL2_ID | MSCAN_FL2_ID)
+#elif MSCAN_NODE_ID & (MSCAN_FL1_ID | MSCAN_FL2_ID | MSCAN_FL3_ID)
 
     void callbox(byte my_floor);
     #if MSCAN_NODE_ID == MSCAN_FL1_ID
@@ -67,12 +67,6 @@ void main(void) {
     
     msleep(16); // wait 16ms before init LCD
     LCDinit();  // initialize LCD, cursor should be visible with blink after
-    
-    #if MSCAN_NODE_ID == MSCAN_CTL_ID
-    // For some reason this needs to be disabled if programming a callbox
-    // Something to do with pulse accumulator setup causes it to get stuck in msleep()
-    dist_init();
-    #endif
     
     led7_init();
     led7_write(LED7_HBARS);
@@ -120,6 +114,8 @@ void controller() {
     word car_height, distance;
     byte cur_floor;
     char buf[64];
+    
+    dist_init();
     
     for(;;) {
         distance = dist_read();
@@ -214,7 +210,7 @@ void controller() {
                     break;
             }
         }
-        delay_ms(10);
+        msleep(10);
     }
 }
 
