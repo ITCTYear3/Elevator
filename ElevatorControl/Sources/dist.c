@@ -1,8 +1,8 @@
-/* HC SR04 Ultrasonic Sensor */
+/* HC-SR04 Ultrasonic Sensor */
 
 #include <mc9s12c32.h>
-#include "timer.h"  // usleep()
 #include "dist.h"
+#include "timer.h"  // usleep()
 
 #define TRIG_PIN    PTT_PTT6    // Using PT6 gpio pin for trigger
 
@@ -11,7 +11,7 @@ static word volatile pulse_overflow_count;
 
 
 /* Initialize pulse accumulator module */
-void dist_init() {
+void dist_init(void) {
     PACTL_PAMOD = 1;    // Gated counter mode
     PACTL_PEDGE = 0;    // High-level sensitive
     PACTL_CLK = 0;      // Keep using prescaled Bus clk as the clock source
@@ -20,6 +20,8 @@ void dist_init() {
     TIOS_IOS7 = 0;      // Ch7 input capture (echo pin)
     PACTL_PAEN = 1;     // Enable pulse accumulator module
     
+    pulse_overflow_count = 0;
+    
     // Setup trigger pin gpio
     DDRT_DDRT6 = 1;
     TRIG_PIN = 0;
@@ -27,9 +29,9 @@ void dist_init() {
 
 /* Count echo pin pulse length */
 // TODO: return value converted to mm distance length
-word dist_read() {
-    PACNT = 0;      // Reset pulse accumulator count
-    PAFLG_PAIF = 1; // Clear interrupt edge flag by writing a one to it
+word dist_read(void) {
+    PACNT = 0;  // Reset pulse accumulator count
+    PAFLG = PAFLG_PAIF_MASK;    // Clear interrupt edge flag by writing a one to it
     
     // Generate 10us trigger pulse
     TRIG_PIN = 1;
@@ -40,8 +42,8 @@ word dist_read() {
     
     // Check in case of PACNT overflow
     if(PAFLG_PAOVF) {
-        PAFLG_PAOVF = 1;    // Clear overflow flag by writing a one to it
-        return -1;
+        PAFLG = PAFLG_PAOVF_MASK;   // Clear overflow flag by writing a one to it
+        return 0;
     }
     
     return PACNT;
@@ -56,9 +58,9 @@ word get_pulse_overflow_count(void) {
 interrupt VectorNumber_Vtimpaovf
 void PACNT_Overflow_ISR(void) {
 #ifdef FAST_FLAG_CLR
-    (void)PACNT;             // Clear timer overflow flag by reading PACNT (fast flag clear enabled)
+    (void)PACNT;    // Clear timer overflow flag by reading PACNT (fast flag clear enabled)
 #else
-    PAFLG = PAFLG_PAOVF_MASK;   // Clear timer overflow flag by writing a one to it
+    PAFLG = PAFLG_PAOVF_MASK;   // Clear overflow flag by writing a one to it
 #endif
     
     pulse_overflow_count++;

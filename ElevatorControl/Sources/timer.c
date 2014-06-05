@@ -20,10 +20,9 @@ void timer_init(void) {
     TSCR2_TOI = 0;      // Disable overflow interrupt
     TSCR2_TCRE = 0;     // Disable TCNT reset on successful TC7 output compare event
     SET_TCNT_PRESCALE(TCNT_PRESCALE_1); // Set timer prescaler to 1 (TCNT at 8MHz)
-    
-    timer_overflow_count = 0;   // Reset overflow counter
-    
     TSCR1_TEN = 1;      // Enable timer module
+    
+    timer_overflow_count = 0;
 }
 
 /* Current timer overflow count */

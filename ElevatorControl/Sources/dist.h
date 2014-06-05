@@ -1,4 +1,4 @@
-/* HC SR04 Ultrasonic Sensor */
+/* HC-SR04 Ultrasonic Sensor */
 #ifndef _DIST_H
 #define _DIST_H
 
