@@ -21,7 +21,8 @@
 #define SW1     !PTJ_PTJ6
 #define SW2     !PTJ_PTJ7
 
-#define CM_PER_FLOOR 15
+#define MM_PER_FLOOR    50 // Distance between each floor in millimetres
+#define NUM_FLOORS      5
 
 // Set local node ID (unique to each node)
 #define MSCAN_NODE_ID   MSCAN_CTL_ID
@@ -119,13 +120,29 @@ void controller() {
     
     for(;;) {
         distance = dist_read();
-        if ( distance > (7*5*CM_PER_FLOOR) ) {
+        if ( distance > (NUM_FLOORS * MM_PER_FLOOR) ) {
+            // Car distance is above the highest floor
             car_height = 999;
             cur_floor = 0;
             led7_write(led7_bars[1]);
         } else {
-            car_height = (10*distance)/4;
-            cur_floor = 1 + ((car_height / 10) / CM_PER_FLOOR);
+            car_height = distance;
+            
+            //cur_floor = 1 + (car_height / MM_PER_FLOOR);
+            if(car_height > 0 && car_height < MM_PER_FLOOR) {
+                cur_floor = 1;
+            } else if(car_height > MM_PER_FLOOR && car_height < (2 * MM_PER_FLOOR)) {
+                cur_floor = 2;
+            } else if(car_height > (2 * MM_PER_FLOOR) && car_height < (3 * MM_PER_FLOOR)) {
+                cur_floor = 3;
+            } else if(car_height > (3 * MM_PER_FLOOR) && car_height < (4 * MM_PER_FLOOR)) {
+                cur_floor = 4;
+            } else if(car_height > (4 * MM_PER_FLOOR) && car_height < (5 * MM_PER_FLOOR)) {
+                cur_floor = 5;
+            } else {
+                cur_floor = 0;
+            }
+            
             led7_write(led7_table[cur_floor]);
             update_floor(cur_floor);
         }

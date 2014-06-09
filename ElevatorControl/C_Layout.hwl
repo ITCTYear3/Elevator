@@ -2,13 +2,11 @@ OPEN source 0 0 60 62
 Source < attributes TOOLTIP on,TOOLTIP_FORMAT signed,TOOLTIP_MODE details,FREEZE off,MARKS off
 OPEN memory 60 0 40 22
 Memory < attributes FORMAT hex,COMPLEMENT None,WORD 1,ASC on,ADR on,MODE automatic,UPDATERATE 10,ADDRESS 0x150
-OPEN data 60 62 40 38
-Data:1 < attributes SCOPE global,COMPLEMENT None,FORMAT Symb,MODE periodical,SORT NotSort,UPDATERATE 1,NAMEWIDTH 16
 OPEN data 0 62 60 38
-Data:2 < attributes SCOPE local,COMPLEMENT None,FORMAT Symb,MODE periodical,SORT NotSort,UPDATERATE 1,NAMEWIDTH 16
-OPEN Mcuregisters 60 22 40 40
-MCURegisters < attributes COLUMNWIDTH 0, 150,COLUMNWIDTH 1, 100,COLUMNWIDTH 2, 350,EXPAND TIM,FORMAT BIN,UPDATERATE 1,MODE automatic
+Data < attributes SCOPE local,COMPLEMENT None,FORMAT Symb,MODE periodical,SORT NotSort,UPDATERATE 1,NAMEWIDTH 16
+OPEN Mcuregisters 60 22 40 78
+MCURegisters < attributes COLUMNWIDTH 0, 150,COLUMNWIDTH 1, 121,COLUMNWIDTH 2, 350,FORMAT BIN,UPDATERATE 1,MODE automatic
 bckcolor 50331647
 font 'Courier New' 9 BLACK
 AUTOSIZE on
-ACTIVATE "Memory" "Data:2" "Source" "Data:1" "MCURegisters"
+ACTIVATE "Memory" "Data" "Source" "MCURegisters"

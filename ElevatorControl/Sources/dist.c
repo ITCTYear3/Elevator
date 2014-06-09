@@ -1,4 +1,7 @@
-/* HC-SR04 Ultrasonic Sensor */
+/* HC-SR04 Ultrasonic Sensor
+ * User Manual: https://docs.google.com/document/d/1Y-yZnNhMYy7rwhAgyL_pfa39RsB-x2qR4vP8saG73rE
+ * 3mm resolution
+ */
 
 #include <mc9s12c32.h>
 #include "dist.h"
@@ -12,6 +15,7 @@ static word volatile pulse_overflow_count;
 
 /* Initialize pulse accumulator module */
 void dist_init(void) {
+    
     PACTL_PAMOD = 1;    // Gated counter mode
     PACTL_PEDGE = 0;    // High-level sensitive
     PACTL_CLK = 0;      // Keep using prescaled Bus clk as the clock source
@@ -30,15 +34,37 @@ void dist_init(void) {
 /* Count echo pin pulse length */
 // TODO: return value converted to mm distance length
 word dist_read(void) {
+    word volatile count;
+    dword volatile count2;
+    byte i;
+    
     PACNT = 0;  // Reset pulse accumulator count
+#ifndef FAST_FLAG_CLR
     PAFLG = PAFLG_PAIF_MASK;    // Clear interrupt edge flag by writing a one to it
+#endif
     
     // Generate 10us trigger pulse
     TRIG_PIN = 1;
-    usleep(10);
+    delay_us(10); // ** Microsecond delay function is not accurate, unsure as to why
+    //for(i=0; i<15; i++);    // Equivalent to 10us delay
     TRIG_PIN = 0;
     
     while(!PAFLG_PAIF); // Wait for falling edge on echo pin
+    
+    /* Calculate distance in mm:
+     * PACLK is bus clock divided by 64 (8MHz / 64 = 125kHz)
+     * Each PACLK time tick is 8us
+     * time ticks * 8 = pulse width(us)
+     * pulse width(us) / 58 = distance(cm)
+     * distance(cm) * 10 = distance(mm)
+     */
+    //count = 10*((PACNT*8) / 58);
+    /* Using binary scaling to get a good estimate
+     * (PACNT*(80/58)*8)/8 = PACNT*(80/58)
+     */
+    count = PACNT;
+    count2 = 11 * (dword)count;
+    count = (word)(count2 / 8);
     
     // Check in case of PACNT overflow
     if(PAFLG_PAOVF) {
@@ -46,7 +72,7 @@ word dist_read(void) {
         return 0;
     }
     
-    return PACNT;
+    return count;
 }
 
 /* Current PACNT overflow count */

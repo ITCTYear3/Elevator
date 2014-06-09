@@ -5,23 +5,14 @@
 #include "utils.h"
 
 
-#define TC_SLEEP        3   // msleep function timer channel (0-7), must not conflict with other channels in use
-#define TC_SLEEP2       4   // usleep function timer channel (0-7), must not conflict with other channels in use
+/* (NOTE: For some reason it appears as though reading TCNT does NOT clear the TOF flag in FFC mode) */
+//#define FAST_FLAG_CLR   // Fast flag clear is enabled
 
-//#define FAST_FLAG_CLR       // Fast flag clear is enabled
+#define TC_DELAY    3   // Delay function timer channel, must not conflict with other channels in use
 
-// Output compare TCNT deltas
-#define OC_DELTA_1MS        8000                    // 1ms delta with prescaler of 1
-#define OC_DELTA_1US        8                       // 1us delta with prescaler of 1
-#define TIMER_DELTA(ms)     ((ms) * OC_DELTA_1MS)   // Delta to set up timer channel for next event
+#define TIMETICKS_1US   8                       // Number of time ticks in 1 microsecond (clk source freq * 1e-6)
+#define TIMETICKS_1MS   (TIMETICKS_1US * 1000)  // Number of time ticks in 1 millisecond
 
-// Output compare duty times
-#define TIMER_1_PERIOD      500     // period in ms
-#define TIMER_1_DUTY_CYCLE  20      // % Duty cycle
-#define TIMER_1_ON_TIME     (((TIMER_1_PERIOD * TIMER_1_DUTY_CYCLE) / 100) * OC_DELTA_1MS)
-#define TIMER_1_OFF_TIME    ((TIMER_1_PERIOD * OC_DELTA_1MS) - TIMER_1_ON_TIME)
-
-/*****************************************************************************/
 
 #define TC(chan)        CAT(TC,chan)                    // Select timer channel
 #define TC_OC(chan)     SET_BITS(TIOS, 1 << (chan))     // Set channel to output compare
@@ -79,7 +70,9 @@
 
 void timer_init(void);
 word get_overflow_count(void);
-void msleep(word);
-void usleep(word);
+void delay_us(word us);
+//void delay_ms(word ms);
+void usleep(word us);
+void msleep(word ms);
 
 #endif // _TIMER_H

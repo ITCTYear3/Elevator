@@ -30,33 +30,47 @@ word get_overflow_count(void) {
     return timer_overflow_count;
 }
 
-/*      Milisecond sleep timer       */
-/* Uses output compare timer channel */
-/* to count in milisecond increments */
+/* Microsecond sleep timer */
+void delay_us(word us) {
+    
+    TC_OC(TC_DELAY);    // Set timer channel to output compare
+#if TIMETICKS_1US == 1
+    TC(TC_DELAY) = TCNT + us;
+#else
+    TC(TC_DELAY) = TCNT + (TIMETICKS_1US * us); // Preset channel register
+#endif
+    
+    while(!( TFLG1 & (1 << TC_DELAY) ));
+}
+
+/* Millisecond sleep timer */
 void msleep(word ms) {
     word i;
     
-    TC(TC_SLEEP) = TCNT + OC_DELTA_1MS; // Preset channel register
-    TC_OC(TC_SLEEP);                    // Enable channel as output compare
+    TC_OC(TC_DELAY);
+#if TIMETICKS_1MS == 1
+    TC(TC_DELAY) = TCNT + ms;
+#else
+    TC(TC_DELAY) = TCNT + TIMETICKS_1MS;    // Preset channel register
+#endif
     
     for(i=0; i < ms; i++) {
-        while(!(TFLG1 & (1 << TC_SLEEP)));  // Wait for event
-        TC(TC_SLEEP) += OC_DELTA_1MS;       // Rearm channel register, clearing TFLG as well
+        while(!(TFLG1 & (1 << TC_DELAY)));  // Wait for event
+        TC(TC_DELAY) += TIMETICKS_1MS;      // Rearm channel register, clearing TFLG as well
     }
 }
-
-/* Microsecond sleep timer */
-void usleep(word us) {
-    word i;
+/*
+void msleep(word ms) {
     
-    TC(TC_SLEEP2) = TCNT + OC_DELTA_1US; // Preset channel register
-    TC_OC(TC_SLEEP2);                    // Enable channel as output compare
+    TC_OC(TC_DELAY);    // Set timer channel to output compare
+#if TIMETICKS_1MS == 1
+    TC(TC_DELAY) = TCNT + ms;
+#else
+    TC(TC_DELAY) = TCNT + (TIMETICKS_1MS * ms); // Preset channel register
+#endif
     
-    for(i=0; i < us; i++) {
-        while(!(TFLG1 & (1 << TC_SLEEP2)));  // Wait for event
-        TC(TC_SLEEP2) += OC_DELTA_1US;       // Rearm channel register, clearing TFLG as well
-    }
-}
+    while(!( TFLG1 & (1 << TC_DELAY) ));
+}*/
 
 /* TCNT overflow interrupt handler */
 interrupt VectorNumber_Vtimovf
