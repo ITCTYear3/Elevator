@@ -1,18 +1,22 @@
 '''
  logger.py
+ Command logger via socket connection and monitor serial port for incomming data
+
 Created on Jun 10, 2014
 
 @author: jmorgan1
 '''
 
+import sys
+import os
 import time
 import datetime
 import random
-import select
 import threading
+import select
 import socket
+import serial
 import wx
-#from wx.lib.pubsub import setupkwargs
 from wx.lib.pubsub import pub
 
 local_host = 'localhost'
@@ -24,10 +28,61 @@ local_socket = (local_host, local_port)
 remote_socket = (remote_host, remote_port)
 
 
-class socketClient(threading.Thread):
+class SerialClient(threading.Thread):
+    """Busy wait watching serial port for new incomming data and pass data to subscriber"""
+    def __init__(self, port='COM1', baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE):
+        super(SerialClient, self).__init__()
+        self.ser = serial.Serial()
+        self.ser.port     = port
+        self.ser.baudrate = baudrate
+        self.ser.bytesize = bytesize
+        self.ser.parity   = parity
+        self.ser.rtscts   = False
+        self.ser.xonxoff  = False
+        self.ser.timeout  = 1    # Required so that the reader thread does not block indefinitely
+        
+        try:
+            self.ser.open()
+            print "Opened serial port {}".format(self.ser.name)
+        except serial.SerialException as e:
+            print "Could not open serial port {}: {}\n".format(self.ser.name, e)
+            sys.exit(1)
+        
+        self.setDaemon(True)
+        self.start()
+    
+    def run(self):
+        self.reader()
+    
+    def reader(self):
+        """loop forever and watch for messages on serial"""
+        while True:
+            try:
+                data = self.ser.read(1)              # read one, blocking
+                n = self.ser.inWaiting()             # look if there is more
+                if n:
+                    print "N: {}".format(n)
+                    data = data + self.ser.read(n)   # and get as much as possible
+                if data:
+                    """NOTE: data size is a max of 8 bytes for each read loop"""
+                    print "Data: {}".format(data).encode()
+                    wx.CallAfter(pub.sendMessage, 'update', data=data)
+            except serial.SerialException as e:
+                print "Serial read error: {}".format(e)
+                break
+        
+        # Close serial connection after breaking out of the running loop
+        try:
+            self.ser.close()
+        except serial.SerialException as e:
+            print "Serial close error: {}".format(e)
+            sys.exit(1)
+
+
+class SocketClient(threading.Thread):
     """Listen on local socket and pass received data to subscriber"""
     def __init__(self):
-        super(socketClient, self).__init__()
+        super(SocketClient, self).__init__()
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind(local_socket)
         self.socket.listen(5)
@@ -45,9 +100,9 @@ class socketClient(threading.Thread):
                     data = self.AddTimestamp(data)
                     print data
                     # Tell the window panel to update the text area
-                    wx.CallAfter(pub.sendMessage, 'update', msg=data)
+                    wx.CallAfter(pub.sendMessage, 'update', data=data)
             except socket.error as e:
-                print "Socket error:" + str(e)
+                print "Socket error: {}".format(e)
                 break
             
         # Shutdown the socket after breaking out of the running loop
@@ -76,7 +131,7 @@ class MainWindow(wx.Frame):
         pub.subscribe(self.UpdateDisplay, 'update')
         
         # start thread to listen for incomming socket connections
-        self.ipc = socketClient()
+        self.ipc = SocketClient()
     
     def InitUI(self):
         """Setup window elements"""
@@ -124,13 +179,12 @@ class MainWindow(wx.Frame):
             client.send(message)
             client.shutdown(socket.SHUT_RDWR)
             client.close()
-        except Exception as e:
-            print "Socket error: " + str(e)
+        except socket.error as e:
+            print "Socket error: {}".format(e)
     
-    def UpdateDisplay(self, msg):
-        """Called when the window panel receives an update request
-           from the IPC thread after sending a message"""
-        self.textDisplay.AppendText( str(msg) + "\n" )
+    def UpdateDisplay(self, data):
+        """Called when the window panel receives an event from pub.sendMessage with data"""
+        self.textDisplay.AppendText( str(data) )
 
 
 if __name__ == "__main__":
@@ -145,5 +199,9 @@ if __name__ == "__main__":
     local_socket = (local_host, 8085)
     remote_socket = (local_host, 8084)
     frame2 = MainWindow(None, title="Serial and Socket Logger 2")
+    
+    # Start serial thread which will monitor serial port
+    # and send data to the text display on the GUI window
+    serial = SerialClient(port='COM11', baudrate=9600)
     
     app.MainLoop()
