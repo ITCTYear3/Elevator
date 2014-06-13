@@ -99,6 +99,7 @@ class SocketClient(threading.Thread):
                     data = str(addr) + " " + data   # Add on socket address
                     data = self.AddTimestamp(data)
                     print data
+                    data += "\n"
                     # Tell the window panel to update the text area
                     wx.CallAfter(pub.sendMessage, 'update', data=data)
             except socket.error as e:
