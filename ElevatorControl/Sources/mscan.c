@@ -6,15 +6,15 @@
 
 static byte volatile rxbuffer[PAYLOAD_SIZE] = {0};  // Array filled by receiver interrupt
 static byte volatile rxdata_available_flag = 0;
-	   
-static byte volatile putbuffer[PAYLOAD_SIZE] = {0};  // Array filled by user locally
+
+static byte volatile putbuffer[PAYLOAD_SIZE] = {0}; // Array filled by user locally
 static byte volatile putdata_available_flag = 0;
 
-static CANframe volatile lastTxFrame;				 // The last successful outgoing frame
-static byte volatile txdata_sent_flag = 0;				 
+static CANframe volatile lastTxFrame;               // The last successful outgoing frame
+static byte volatile txdata_sent_flag = 0;
 
-static CANframe volatile lastRxFrame;				 // The last successful incoming frame
-static byte volatile rxdata_received_flag = 0;			
+static CANframe volatile lastRxFrame;               // The last successful incoming frame
+static byte volatile rxdata_received_flag = 0;
 
 
 /*
@@ -54,7 +54,6 @@ void CANinit(word id) {
     
     CANCTL0_TIME = 1;   // Add a 16-bit timestamp to each message
     CANCTL1_LISTEN = 0; // Cannot be in listen mode if we want to send messages
-#define USE_LOOPBACK
 #ifdef USE_LOOPBACK
     CANCTL1_LOOPB = 1;  // Enable loopback for testing
 #else
