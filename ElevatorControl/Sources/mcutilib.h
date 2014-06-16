@@ -36,7 +36,8 @@ typedef struct {
 } RingBuf;
 
 byte ringEmpty(volatile RingBuf *ring);  
-byte ringFull(volatile RingBuf *ring);  
+byte ringFull(volatile RingBuf *ring); 
+byte ringAvailable(volatile RingBuf *ring); 
 void ringPut(volatile RingBuf *ring, byte value); 
 byte ringTake(volatile RingBuf *ring);
 

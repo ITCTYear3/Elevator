@@ -18,6 +18,11 @@ byte ringEmpty(volatile RingBuf *ring) {
 #pragma INLINE
 byte ringFull(volatile RingBuf *ring) {
 	return ring->count == ring->size;
+}  
+
+#pragma INLINE
+byte ringAvailable(volatile RingBuf *ring) {
+	return ring->count;
 }
 
 #pragma MESSAGE DISABLE C2705 // Possible loss of data warning

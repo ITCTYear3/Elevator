@@ -53,23 +53,25 @@ class SerialClient(threading.Thread):
     
     def run(self):
         self.reader()
-    
+		    
     def reader(self):
         """loop forever and watch for messages on serial"""
         while True:
             try:
-                data = self.ser.read(1)              # read one, blocking
-                n = self.ser.inWaiting()             # look if there is more
-                if n:
-                    print "N: {}".format(n)
-                    data = data + self.ser.read(n)   # and get as much as possible
-                if data:
-                    """NOTE: data size is a max of 8 bytes for each read loop"""
-                    print "Data: {}".format(data).encode()
-                    wx.CallAfter(pub.sendMessage, 'update', data=data)
-            except serial.SerialException as e:
-                print "Serial read error: {}".format(e)
-                break
+				data = self.ser.read(1)              # read one, blocking
+				n = self.ser.inWaiting()             # look if there is more
+				if n:
+					print "N: {}".format(n)
+					data = data + self.ser.read(n)   # and get as much as possible
+				if data:
+					"""NOTE: data size is a max of 8 bytes for each read loop"""
+					print "Data: {}".format(data)
+					num_data = [ ord(ch) for ch in data ] 
+					print "Data: {}".format(num_data)					
+					wx.CallAfter(pub.sendMessage, 'update', data=data)
+            except self.ser.SerialException as e:
+				print "Serial read error: {}".format(e)
+				break
         
         # Close serial connection after breaking out of the running loop
         try:

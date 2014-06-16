@@ -14,6 +14,7 @@
 #include "lcdspi.h"
 #include "dist.h"
 #include "led7.h"
+#include "sci.h"
 #include "mcutilib.h"
 
 #define LED1    PTS_PTS2
@@ -24,9 +25,9 @@
 #define CM_PER_FLOOR 15
 
 // Set local node ID (unique to each node)
-#define MSCAN_NODE_ID   MSCAN_CTL_ID
+//#define MSCAN_NODE_ID   MSCAN_CTL_ID
 //#define MSCAN_NODE_ID   MSCAN_CAR_ID
-//#define MSCAN_NODE_ID   MSCAN_FL1_ID
+#define MSCAN_NODE_ID   MSCAN_FL1_ID
 //#define MSCAN_NODE_ID   MSCAN_FL2_ID
 //#define MSCAN_NODE_ID   MSCAN_FL3_ID
 
@@ -53,8 +54,10 @@
 
 #endif
 
-
+#pragma MESSAGE DISABLE C1420
 void main(void) {
+    
+    byte b;
     
     DDRS_DDRS2 = 1; DDRS_DDRS3 = 1; // Enable LEDs
     DDRJ_DDRJ6 = 0; DDRJ_DDRJ7 = 0; // Enable switches
@@ -73,10 +76,20 @@ void main(void) {
     
     lcd_init();
     
+    sci_init();
+    
     EnableInterrupts;
     
+    sci_sendBytes((byte*)"Ready", 5);
+    
     for(;;) {
-        RUN();
+       /*
+        while ( sci_bytesAvailable() ) {
+        	sci_readByte(&b);
+			lcd_putc(b);  
+        }   */
+       RUN();
+       
     }
 }
 
@@ -98,6 +111,9 @@ void update_floor(byte floor) {
     CANsend(&txframe);
 }
 
+
+
+
 /*
  * Controller functionality
  * - Send elevator location messages to callboxes
@@ -114,6 +130,7 @@ void controller() {
     word car_height, distance;
     byte cur_floor;
     char buf[64];
+    byte b;
     
     dist_init();
     
@@ -152,6 +169,14 @@ void controller() {
                 lcd_puts(buf+1);
             }
         }
+        
+        
+        runSerialCAN();
+        /*
+        while ( sci_bytesAvailable() ) {
+        	sci_readByte(&b);
+			lcd_putc(b);  
+        }		*/
         
         if(data_available()) {
             
@@ -210,7 +235,7 @@ void controller() {
                     break;
             }
         }
-        msleep(10);
+        msleep(100);
     }
 }
 
@@ -218,44 +243,60 @@ void controller() {
  * Callbox functionality
  * - Listen for button presses, and accept elevator location messages
  */
+ 
+void button_up(byte my_floor) {	 
+	CANframe txframe;	// Transmitted CAN frame
+	LED1 = 1; 
+	// Message to controller; up button pressed
+	txframe.id = MSCAN_CTL_ID;
+	txframe.priority = 0x01;
+	txframe.length = 3;
+	txframe.payload[0] = CMD_BUTTON_CALL;
+	txframe.payload[1] = my_floor;
+	txframe.payload[2] = BUTTON_UP;
+	CANsend(&txframe);
+}
+     
+void button_down(byte my_floor) {
+	CANframe txframe;	// Transmitted CAN frame
+	LED2 = 1;
+	// Message to controller; down button pressed
+	txframe.id = MSCAN_CTL_ID;
+	txframe.priority = 0x01;
+	txframe.length = 3;
+	txframe.payload[0] = CMD_BUTTON_CALL;
+	txframe.payload[1] = my_floor;
+	txframe.payload[2] = BUTTON_DOWN;
+	CANsend(&txframe);
+}
+ 
+ 			  
+static byte sw1_pressed = 0;
+static byte sw2_pressed = 0;
+
 void callbox(byte my_floor) {
-    byte sw1_pressed = 0, sw2_pressed = 0;
-    CANframe txframe;               // Transmitted CAN frame
     byte rxmessage[PAYLOAD_SIZE];   // Received data payload
     static byte floor, direction;
     
     floor = 0xFF;   // Start at false floor
     direction = DIRECTION_STATIONARY;   // Assume starting car direction is stationary
     
-    if(SW1 && !sw1_pressed) {
-        sw1_pressed = 1;
-        LED1 = 1;
-        
-        // Message to controller; up button pressed
-        txframe.id = MSCAN_CTL_ID;
-        txframe.priority = 0x01;
-        txframe.length = 3;
-        txframe.payload[0] = CMD_BUTTON_CALL;
-        txframe.payload[1] = my_floor;
-        txframe.payload[2] = BUTTON_UP;
-        CANsend(&txframe);
+    if(SW1 && !sw1_pressed) {  
+		sw1_pressed = 1;
+    	button_up(my_floor);
     }
-    if(SW2 && !sw2_pressed) {
-        sw2_pressed = 1;
-        LED2 = 1;
-        
-        // Message to controller; down button pressed
-        txframe.id = MSCAN_CTL_ID;
-        txframe.priority = 0x01;
-        txframe.length = 3;
-        txframe.payload[0] = CMD_BUTTON_CALL;
-        txframe.payload[1] = my_floor;
-        txframe.payload[2] = BUTTON_DOWN;
-        CANsend(&txframe);
+    if(SW2 && !sw2_pressed) { 
+		sw2_pressed = 1;
+        button_down(my_floor);
     }
     if(!SW1) sw1_pressed = 0;
-    if(!SW2) sw1_pressed = 0;
+    if(!SW2) sw2_pressed = 0;
     
+    
+        
+    runSerialCAN();
+        
+        
     if(data_available()) {
         
         CANget(rxmessage);
@@ -268,6 +309,9 @@ void callbox(byte my_floor) {
                 LCDclear();
                 LCDprintf("Floor: %d\nDir: %d", floor, direction);
                 break;
+            case CMD_BUTTON_CALL:
+            	rxmessage[1] == DIRECTION_UP ? button_up(my_floor) : button_down(my_floor);
+            	break;
             case CMD_ERROR:
                 LCDclear();
                 LCDprintf("Error condition\nreceived!");
@@ -281,5 +325,6 @@ void callbox(byte my_floor) {
         if(floor == my_floor) {
             LED1 = 0; LED2 = 0;
         }
-    }
+    }   
+    msleep(100);
 }

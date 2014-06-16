@@ -5,7 +5,16 @@
 #include "mscan.h"
 
 static byte volatile rxbuffer[PAYLOAD_SIZE] = {0};  // Array filled by receiver interrupt
-static byte volatile data_available_flag = 0;
+static byte volatile rxdata_available_flag = 0;
+	   
+static byte volatile putbuffer[PAYLOAD_SIZE] = {0};  // Array filled by user locally
+static byte volatile putdata_available_flag = 0;
+
+static CANframe volatile lastTxFrame;				 // The last successful outgoing frame
+static byte volatile txdata_sent_flag = 0;				 
+
+static CANframe volatile lastRxFrame;				 // The last successful incoming frame
+static byte volatile rxdata_received_flag = 0;			
 
 
 /*
@@ -20,7 +29,9 @@ static byte volatile data_available_flag = 0;
 /* Initialize CAN bus */
 /* Only call this once during startup! */
 /* Currently configured to 1Mbit/s bitrate */
-void CANinit(word id) {
+void CANinit(word id) { 
+	lastRxFrame.id = id;
+    
     CANCTL1_CANE = 1;   // Enable the MSCAN module (write once)
     
     CANCTL0_INITRQ = 1;     // Request to enter init mode
@@ -43,6 +54,7 @@ void CANinit(word id) {
     
     CANCTL0_TIME = 1;   // Add a 16-bit timestamp to each message
     CANCTL1_LISTEN = 0; // Cannot be in listen mode if we want to send messages
+#define USE_LOOPBACK
 #ifdef USE_LOOPBACK
     CANCTL1_LOOPB = 1;  // Enable loopback for testing
 #else
@@ -112,24 +124,72 @@ byte CANsend(CANframe *frame) {
     CANTFLG = txbuffer;     // Release tx buffer for transmission by clearing the associated flag
     while((CANTFLG & txbuffer) != txbuffer);    // Wait for transmission to complete
     
+    lastTxFrame = *frame;   // Save the frame for future use
+    txdata_sent_flag = 1;
+    
     return 0;
 }
 
 /* Fill a byte array with payload data */
 void CANget(byte *data) {
-    byte i;
-    
-    DisableInterrupts;
-    for(i=0; i<PAYLOAD_SIZE; i++) {
-        *(data + i) = rxbuffer[i];
-    }
-    data_available_flag = 0;
-    EnableInterrupts;
+    byte i;    
+    if ( rxdata_available_flag ) { 	     
+	    DisableInterrupts;
+	    for(i=0; i<PAYLOAD_SIZE; i++) {
+	        *(data + i) = rxbuffer[i];
+	    }
+	    rxdata_available_flag = 0;
+	    EnableInterrupts;
+	    return;
+	} 	
+	if ( putdata_available_flag ) { 	     
+	    DisableInterrupts;
+	    for(i=0; i<PAYLOAD_SIZE; i++) {
+	        *(data + i) = putbuffer[i];
+	    }
+	    putdata_available_flag = 0;
+	    EnableInterrupts;
+	    return;
+	}  
 }
 
 /* Return the data available flag */
 byte data_available(void) {
-    return data_available_flag;
+    return rxdata_available_flag || putdata_available_flag;
+}
+
+ /* Simulate a frame for this node */
+void CANput(byte *data) {
+    byte i;
+    
+    DisableInterrupts;
+    for(i=0; i<PAYLOAD_SIZE; i++) {
+        *(data + i) = putbuffer[i];
+    }
+    putdata_available_flag = 1;
+    EnableInterrupts;
+}
+				
+/* Return the data sent flag */
+byte data_sent() {
+	return txdata_sent_flag;
+}
+		  
+/* Return the last frame that was successfully transmitted */
+CANframe *last_txframe() {
+	txdata_sent_flag = 0;	 // "Fast flag clear" 
+	return &lastTxFrame;
+}
+
+/* Return the data sent flag */
+byte data_received() {
+	return rxdata_received_flag;
+}
+		  
+/* Return the last frame that was successfully received */
+CANframe *last_rxframe() {
+	rxdata_received_flag = 0;	 // "Fast flag clear" 
+	return &lastRxFrame;
 }
 
 
@@ -139,15 +199,20 @@ interrupt VectorNumber_Vcanrx
 void CANreceiveISR(void) {
     byte length, i;
     word timestamp;
-    
-    length = CANRXDLR_DLC;  // Length is 4 bits, max value of 8
+        
+    length = CANRXDLR_DLC;  // Length is 4 bits, max value of 8		 
+    lastRxFrame.length = CANRXDLR_DLC;
     
     // Copy out payload data (data segment registers memory mapped in sequential order)
-    for(i=0; i<length; i++)
+    for(i=0; i<length; i++) {
         rxbuffer[i] = *(&CANRXDSR0 + i);
+        lastRxFrame.payload[i] = *(&CANRXDSR0 + i);
+    }
+    lastRxFrame.length = length;
     
     timestamp = (CANTXTSRH << 8) | CANTXTSRL;   // Timestamp not used at the moment
     
-    data_available_flag = 1;
+    rxdata_available_flag = 1;  
+    rxdata_received_flag = 1;
     CANRFLG = CANRFLG_RXF_MASK; // Clear RXF flag to release rx buffer
 }
