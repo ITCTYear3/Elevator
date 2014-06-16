@@ -19,10 +19,10 @@ import serial
 import wx
 from wx.lib.pubsub import pub
 
-local_host = 'localhost'
-local_port = random.randint(1025,36000) # Choose a random unprivileged port
-remote_host = '142.156.193.168'
-remote_port = 8082
+local_host = socket.gethostbyname(socket.getfqdn()) # Use local interface IP address
+local_port = 31000#random.randint(1025,36000) # Choose a random unprivileged port
+remote_host = '142.156.193.157'
+remote_port = 31001
 
 local_socket = (local_host, local_port)
 remote_socket = (remote_host, remote_port)
@@ -53,25 +53,25 @@ class SerialClient(threading.Thread):
     
     def run(self):
         self.reader()
-		    
+    
     def reader(self):
         """loop forever and watch for messages on serial"""
         while True:
             try:
-				data = self.ser.read(1)              # read one, blocking
-				n = self.ser.inWaiting()             # look if there is more
-				if n:
-					print "N: {}".format(n)
-					data = data + self.ser.read(n)   # and get as much as possible
-				if data:
-					"""NOTE: data size is a max of 8 bytes for each read loop"""
-					print "Data: {}".format(data)
-					num_data = [ ord(ch) for ch in data ] 
-					print "Data: {}".format(num_data)					
-					wx.CallAfter(pub.sendMessage, 'update', data=data)
+                data = self.ser.read(1)              # read one, blocking
+                n = self.ser.inWaiting()             # look if there is more
+                if n:
+                    print "Lenth: {}".format(n+1)
+                    data = data + self.ser.read(n)   # and get as much as possible
+                if data:
+                    """NOTE: data size is a max of 8 bytes for each read loop"""
+                    print "Data: {}".format(data)
+                    num_data = [ ord(ch) for ch in data ]
+                    print "Data: {}".format(num_data)
+                    wx.CallAfter(pub.sendMessage, 'update', data=data)
             except self.ser.SerialException as e:
-				print "Serial read error: {}".format(e)
-				break
+                print "Serial read error: {}".format(e)
+                break
         
         # Close serial connection after breaking out of the running loop
         try:
@@ -88,6 +88,7 @@ class SocketClient(threading.Thread):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind(local_socket)
         self.socket.listen(5)
+        print "Listening on {}:{}".format(local_host, local_port)
         self.setDaemon(True)
         self.start()
     
@@ -153,12 +154,19 @@ class MainWindow(wx.Frame):
         vbox.Add(hbox2, 1, flag=wx.LEFT|wx.RIGHT|wx.EXPAND, border=5)
         
         hbox3 = wx.BoxSizer(wx.HORIZONTAL)
-        self.textInput = wx.TextCtrl(panel, value="Test message", style=wx.TE_LEFT)
-        hbox3.Add(self.textInput, 1, flag=wx.ALL, border=5)
-        btn1 = wx.Button(panel, label="Send Message")
-        btn1.Bind(wx.EVT_BUTTON, self.OnSendMsg)
-        hbox3.Add(btn1, flag=wx.CENTER, border=5)
-        vbox.Add(hbox3, flag=wx.EXPAND)
+        btn1 = wx.Button(panel, label="Clear logs")
+        btn1.Bind(wx.EVT_BUTTON, self.OnClear)
+        hbox3.Add(btn1, flag=wx.ALL, border=2)
+        vbox.Add(hbox3, flag=wx.CENTER)
+        
+        hbox4 = wx.BoxSizer(wx.HORIZONTAL)
+        self.textInput = wx.TextCtrl(panel, value="Test message", style=wx.TE_LEFT|wx.TE_PROCESS_ENTER)
+        self.textInput.Bind(wx.EVT_KEY_DOWN, self.OnEnter)
+        hbox4.Add(self.textInput, 1, flag=wx.ALL, border=2)
+        btn2 = wx.Button(panel, label="Send Message")
+        btn2.Bind(wx.EVT_BUTTON, self.OnSendMsg)
+        hbox4.Add(btn2, flag=wx.ALL, border=2)
+        vbox.Add(hbox4, flag=wx.EXPAND)
         
         panel.SetSizer(vbox)
     
@@ -173,10 +181,18 @@ class MainWindow(wx.Frame):
         if result == wx.ID_YES:
             self.Destroy()
     
+    def OnEnter(self, event):
+        """Handle when the return key is pressed within textInput field"""
+        key = event.GetKeyCode()
+        if key == wx.WXK_RETURN:
+            self.OnSendMsg(event)   # Pass off to OnSendMsg function
+        event.Skip()
+    
     def OnSendMsg(self, event):
         """Called when the send button is pressed"""
         message = self.textInput.Value  # Get string from input field
         try:
+            print "Sending to {}:{}".format(remote_host, remote_port)
             client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             client.connect(remote_socket)
             client.send(message)
@@ -184,6 +200,11 @@ class MainWindow(wx.Frame):
             client.close()
         except socket.error as e:
             print "Socket error: {}".format(e)
+        self.textInput.Clear()  # Clear text input field after trying to send
+    
+    def OnClear(self, event):
+        """Called when the clear logs button is pressed"""
+        self.textDisplay.Clear()
     
     def UpdateDisplay(self, data):
         """Called when the window panel receives an event from pub.sendMessage with data"""
@@ -193,15 +214,8 @@ class MainWindow(wx.Frame):
 if __name__ == "__main__":
     app = wx.App(False)
     
-    # First window, override port numbers
-    local_socket = (local_host, 8084)
-    remote_socket = (local_host, 8085)
     frame = MainWindow(None, title="Serial and Socket Logger 1")
-    
-    # Second window, override port numbers
-    local_socket = (local_host, 8085)
-    remote_socket = (local_host, 8084)
-    frame2 = MainWindow(None, title="Serial and Socket Logger 2")
+    #frame2 = MainWindow(None, title="Serial and Socket Logger 2")
     
     # Start serial thread which will monitor serial port
     # and send data to the text display on the GUI window
