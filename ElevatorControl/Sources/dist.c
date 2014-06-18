@@ -35,7 +35,7 @@ word dist_read(void) {
     
     // Generate 10us trigger pulse
     TRIG_PIN = 1;
-    usleep(10);
+    delayMicros(10);
     TRIG_PIN = 0;
     
     while(!PAFLG_PAIF); // Wait for falling edge on echo pin

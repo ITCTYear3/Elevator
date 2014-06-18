@@ -125,14 +125,16 @@ void controller() {
     byte update_lcd = 1;
     byte cycle_count = 0;
     word car_height, distance;
-    byte cur_floor;
+    byte cur_floor, last_floor = 0;
     char buf[64];
     //byte b;
     
     dist_init();
     
-    for(;;) {
-        distance = dist_read();
+    for(;;) {  
+    	delay_ms(100);
+        distance = dist_read()/2;	// div2 is a temporary kludge	   
+        last_floor = cur_floor;
         if ( distance > (7*5*CM_PER_FLOOR) ) {
             car_height = 999;
             cur_floor = 0;
@@ -141,7 +143,9 @@ void controller() {
             car_height = (10*distance)/4;
             cur_floor = 1 + ((car_height / 10) / CM_PER_FLOOR);
             led7_write(led7_table[cur_floor]);
-            update_floor(cur_floor);
+            if ( cur_floor != last_floor ) {
+            	update_floor(cur_floor);
+            }
         }
         
         cycle_count++;
@@ -155,15 +159,19 @@ void controller() {
             update_lcd = 0;
             
             if ( cur_floor == 0 ) {
-                lcd_goto(0x00);
-                lcd_puts("No car   ");
+                //lcd_goto(0x00);
+                //lcd_puts("No car   ");  
+                LCDclear();
+                LCDputs("No car");
             } else {
-                itoa(car_height, 10, 3, "", buf);   
-                lcd_goto(0x00);
-                lcd_puts(buf);
-                lcd_puts("mm/F"); 
-                itoa(cur_floor, 10, 2, "", buf);   
-                lcd_puts(buf+1);
+                //itoa(car_height, 10, 3, "", buf);   
+                //lcd_goto(0x00);
+                //lcd_puts(buf);
+                //lcd_puts("mm/F"); 
+                //itoa(cur_floor, 10, 2, "", buf);   
+                //lcd_puts(buf+1);
+                LCDclear();
+                LCDprintf("%dmm/F%d", car_height, cur_floor);
             }
         }
         
@@ -233,8 +241,7 @@ void controller() {
                     break;
             }
         }
-        msleep(100);
-    }
+    }  
 }
 
 /*
