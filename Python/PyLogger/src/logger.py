@@ -16,72 +16,73 @@ import threading
 import select
 import socket
 import serial
+import string
 import wx
 from wx.lib.pubsub import pub
 
 # Preconfigured connections
 # The local hostname determines the local port and the remote host to connect to
 # The remote host must also be known so that the remote port can be looked up
-# 	{local hostname} : ( {local port}, {remote hostname} )
+#     {local hostname} : ( {local port}, {remote hostname} )
 known_hosts = {
-	"A3146-JM" : (31000, "A3146-04"),
-	"A3146-04" : (31001, "A3146-JM"),
-	"Chris-PC" : (31000, "localhost"),
-	"localhost" : (30999, "localhost")
+    "A3146-JM" : (31000, "A3146-04"),
+    "A3146-04" : (31001, "A3146-JM"),
+    "Chris-PC" : (31000, "localhost"),
+    "localhost" : (30999, "localhost")
 }
 
 # Attempt to determine the local host name and address 
 # Returns a tuple (local_hostname, local_host)
 def getLocalHostInfo():
-	try:
-		local_hostname = socket.getfqdn()
-		local_host = socket.gethostbyname(local_hostname) # Use local interface IP address
-	except socket.gaierror as e:
-		try:
-			local_hostname = socket.gethostname()
-			local_host = socket.gethostbyname(local_hostname) # Try unqualified name if fqdn fails
-		except socket.gaierror as e:
-			local_hostname = "localhost"	# Last resort
-			local_host = "127.0.0.1"
-	return (local_hostname, local_host)
-	
+    try:
+        local_hostname = socket.getfqdn()
+        local_host = socket.gethostbyname(local_hostname) # Use local interface IP address
+    except socket.gaierror as e:
+        try:
+            local_hostname = socket.gethostname()
+            local_host = socket.gethostbyname(local_hostname) # Try unqualified name if fqdn fails
+        except socket.gaierror as e:
+            local_hostname = "localhost"    # Last resort
+            local_host = "127.0.0.1"
+    return (local_hostname, local_host)
+    
 # Attempt to determine a (possibly remote) host address 
 # Returns a tuple (hostname, host), falling back to localhost on failure
 def getHostAddr(hostname):
-	try:
-		host = socket.gethostbyname(hostname)
-	except socket.gaierror as e:
-		hostname = "localhost"
-		host = "127.0.0.1"
-	return (hostname, host)
-	
+    try:
+        host = socket.gethostbyname(hostname)
+    except socket.gaierror as e:
+        hostname = "localhost"
+        host = "127.0.0.1"
+    return (hostname, host)
+    
 # Get local interface details
-(local_hostname, local_host) = getLocalHostInfo();	
-	
+(local_hostname, local_host) = getLocalHostInfo();    
+    
 # Fall back to localhost if the local host name is not recognized
 if local_hostname not in known_hosts:
-	print "Local hostname not found in known_hosts. Falling back to localhost"
-	print "Please create a connection profile for hostname: {}".format(local_hostname)
-	local_hostname = "localhost"	
-	
+    print "Local hostname not found in known_hosts. Falling back to localhost"
+    print "Please create a connection profile for hostname: {}".format(local_hostname)
+    local_hostname = "localhost"    
+    
 # Look up connection info for the chosen local hostname
 (local_port, remote_hostname) = known_hosts[local_hostname]
 
 # Fall back to localhost if the remote host name is not recognized
 if remote_hostname not in known_hosts:
-	print "Remote hostname not found in known_hosts. Falling back to localhost"
-	print "Please create a connection profile for hostname: {}".format(remote_hostname)
-	remote_hostname = "localhost"	
+    print "Remote hostname not found in known_hosts. Falling back to localhost"
+    print "Please create a connection profile for hostname: {}".format(remote_hostname)
+    remote_hostname = "localhost"    
 
 remote_port = known_hosts[remote_hostname][0]
 (remote_hostname, remote_host) = getHostAddr(remote_hostname)
-	
+    
 #local_port = 31000#random.randint(1025,36000) # Choose a random unprivileged port
 #remote_host = '142.156.193.157'
 #remote_port = 31001
 
 print "Using connection profile:"
-print "  {}:{} [{}] -> {}:{} [{}]".format(local_host, local_port, local_hostname, remote_host, remote_port, remote_hostname)		
+print "  {}:{} [{}] -> {}:{} [{}]".format(local_host, local_port, local_hostname, remote_host, remote_port, remote_hostname)        
 
 local_socket = (local_host, local_port)
 remote_socket = (remote_host, remote_port)
@@ -112,7 +113,87 @@ class SerialClient(threading.Thread):
         self.start()
     
     def run(self):
-        self.reader()
+        self.reader_sm()
+        
+    def reader_sm(self):
+        state = 'idh'
+        frame = []
+        while True:
+            #try:                
+            data = self.ser.read(1)              # read one byte, blocking
+            if data == "":
+                continue 
+            data = ord(data)
+            print state
+            print frame
+            print " > {}".format(data)
+            
+                
+            # First byte of a new frame or string
+            if state == 'idh':
+                # Strings never start with null characters so this must be a frame
+                if data == 0:
+                    frame = [data]
+                    state = 'idl'
+                elif chr(data) in string.printable:
+                #else:
+                    str = chr(data)
+                    state = 'str'
+            # Found a string, read until a null character
+            elif state == 'str':
+                if data == 0:
+                    state = 'idh'
+                    print "Got a string"
+                    print str
+                    msg = "String\n------\n{}\n\n".format(str)
+                    wx.CallAfter(pub.sendMessage, 'update', data=msg)
+                elif chr(data) in string.printable:
+                #elif True:
+                    str = str + chr(data)
+                else:
+                    state = 'idh'
+                    print "Unprintable string; realigning..."
+            # Found a frame, read the remaining bytes
+            elif state == 'idl':
+                frame = frame + [data]
+                state = 'priority'
+            elif state == 'priority':
+                frame = frame + [data]
+                state = 'length'
+            elif state == 'length':       
+                frame = frame + [data]
+                payload = []
+                length = data
+                if length == 0:
+                    state = 'frame'
+                else:
+                    state = 'payload'
+            elif state == 'payload':   
+                frame = frame + [data]
+                payload = payload + [data]
+                length = length - 1 
+                if length == 0:
+                    state = 'frame'
+                    
+            if state == 'frame':
+                state = 'idh'
+                print "Got new frame"
+                print frame
+                id = frame[0] * (2^8) + frame[1]
+                priority = frame[2]
+                msg = "Frame\n------\nID: {}\nPriority: {}\nLength: {}\nPayload: {}\n\n".format(id, priority, length, payload)
+                wx.CallAfter(pub.sendMessage, 'update', data=msg)
+            
+            #except self.ser.SerialException as e:
+                #print "Serial read error: {}".format(e)
+                #break
+        
+        # Close serial connection after breaking out of the running loop
+        try:
+            self.ser.close()
+        except serial.SerialException as e:
+            print "Serial close error: {}".format(e)
+            sys.exit(1)
     
     def reader(self):
         """loop forever and watch for messages on serial"""
@@ -312,6 +393,6 @@ if __name__ == "__main__":
     
     # Start serial thread which will monitor serial port
     # and send data to the text display on the GUI window
-    #serial = SerialClient(port='COM11', baudrate=9600)
+    serial = SerialClient(port='COM11', baudrate=9600)
     
     app.MainLoop()
