@@ -61,8 +61,8 @@ def getHostAddr(hostname):
     
 # Fall back to localhost if the local host name is not recognized
 if local_hostname not in known_hosts:
-    print "Local hostname not found in known_hosts. Falling back to localhost"
-    print "Please create a connection profile for hostname: {}".format(local_hostname)
+    print "Local hostname {} not found in known_hosts. Falling back to localhost".format(local_hostname)
+    print "Please create a connection profile for {}".format(local_hostname)
     local_hostname = "localhost"    
     
 # Look up connection info for the chosen local hostname
@@ -70,9 +70,10 @@ if local_hostname not in known_hosts:
 
 # Fall back to localhost if the remote host name is not recognized
 if remote_hostname not in known_hosts:
-    print "Remote hostname not found in known_hosts. Falling back to localhost"
-    print "Please create a connection profile for hostname: {}".format(remote_hostname)
-    remote_hostname = "localhost"    
+    print "Local hostname {} not found in known_hosts. Falling back to localhost".format(remote_hostname)
+    print "Please create a connection profile for {}".format(remote_hostname)
+    (local_hostname, local_host) = ("localhost", "127.0.0.1")
+    (local_port, remote_hostname) = known_hosts[local_hostname]    
 
 remote_port = known_hosts[remote_hostname][0]
 (remote_hostname, remote_host) = getHostAddr(remote_hostname)
