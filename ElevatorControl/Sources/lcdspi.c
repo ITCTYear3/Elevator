@@ -1,10 +1,14 @@
 /* LCD module via SPI */
 
+#include <string.h> // strlen
+
 #include <mc9s12c32.h>
 #include "mcutilib.h"
 #include "utils.h"
 #include "spi.h"
 #include "lcdspi.h"
+#include "sci.h"
+
 
 byte lcd_reg = 0;
 byte lcd_data_h;
@@ -96,7 +100,10 @@ void lcd_puts(char *s) {
     char *c;
     for ( c = s; *c != '\0'; ++c ) {
         lcd_putc(*c);
-    }
+    } 
+#ifdef LCD_SERIAL
+	while ( ! sci_sendBytes((byte*)s, strlen((const char *)s)+1) );
+#endif
 }
 
 void lcd_init() {

@@ -16,6 +16,7 @@
 #include "led7.h"
 #include "sci.h"
 #include "mcutilib.h"
+#include "serialcan.h"
 
 #define LED1    PTS_PTS2
 #define LED2    PTS_PTS3
@@ -25,9 +26,9 @@
 #define CM_PER_FLOOR 15
 
 // Set local node ID (unique to each node)
-//#define MSCAN_NODE_ID   MSCAN_CTL_ID
+#define MSCAN_NODE_ID   MSCAN_CTL_ID
 //#define MSCAN_NODE_ID   MSCAN_CAR_ID
-#define MSCAN_NODE_ID   MSCAN_FL1_ID
+//#define MSCAN_NODE_ID   MSCAN_FL1_ID
 //#define MSCAN_NODE_ID   MSCAN_FL2_ID
 //#define MSCAN_NODE_ID   MSCAN_FL3_ID
 
@@ -67,6 +68,8 @@ void main(void) {
     
     // Clear all MSCAN receiver flags (by setting bits)
     CANRFLG = (CANRFLG_RXF_MASK | CANRFLG_OVRIF_MASK | CANRFLG_CSCIF_MASK | CANRFLG_WUPIF_MASK);
+   
+    sci_init();
     
     msleep(16); // wait 16ms before init LCD
     LCDinit();  // initialize LCD, cursor should be visible with blink after
@@ -76,11 +79,9 @@ void main(void) {
     
     lcd_init();
     
-    sci_init();
-    
     EnableInterrupts;
     
-    sci_sendBytes((byte*)"Ready", 5);
+    sci_sendBytes((byte*)"Ready", 6);
     
     for(;;) {
         /*
@@ -168,7 +169,7 @@ void controller() {
         
         // CAN bus <-> serial link
         // Check for new incoming messages and send out received messages via serial
-        runSerialCAN();
+        runSerialCAN(MSCAN_NODE_ID);
         /*
         while ( sci_bytesAvailable() ) {
             sci_readByte(&b);
@@ -243,7 +244,9 @@ void controller() {
 
 void button_up(byte my_floor) {
     CANframe txframe;   // Transmitted CAN frame
-    LED1 = 1; 
+    LED1 = 1; 							  
+    LCDclear();
+    LCDprintf("Floor: %d\nDir: %s", my_floor, "up");
     // Message to controller; up button pressed
     txframe.id = MSCAN_CTL_ID;
     txframe.priority = 0x01;
@@ -256,7 +259,9 @@ void button_up(byte my_floor) {
 
 void button_down(byte my_floor) {
     CANframe txframe;   // Transmitted CAN frame
-    LED2 = 1;
+    LED2 = 1;	 
+    LCDclear();
+    LCDprintf("Floor: %d\nDir: %s", my_floor, "down");
     // Message to controller; down button pressed
     txframe.id = MSCAN_CTL_ID;
     txframe.priority = 0x01;
@@ -288,7 +293,7 @@ void callbox(byte my_floor) {
     if(!SW1) sw1_pressed = 0;
     if(!SW2) sw2_pressed = 0;
     
-    runSerialCAN();
+    runSerialCAN(MSCAN_NODE_ID);
     
     if(data_available()) {
         
