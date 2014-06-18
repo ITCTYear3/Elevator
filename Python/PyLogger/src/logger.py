@@ -27,7 +27,7 @@ from wx.lib.pubsub import pub
 known_hosts = {
     "A3146-JM" : (31000, "A3146-04"),
     "A3146-04" : (31001, "A3146-JM"),
-    "Chris-PC" : (31000, "localhost"),
+    "Chris-PC" : (31000, "Chris-PC"),
     "localhost" : (30999, "localhost")
 }
 
@@ -88,6 +88,33 @@ local_socket = (local_host, local_port)
 remote_socket = (remote_host, remote_port)
 
 
+# System command tree
+# Used for decoding payload data
+cmds = { 
+    0: ("Location", {
+        "#": { 
+           1: ("Up",{}), 2: ("Down",{}), 3: ("Stationary",{}) 
+        }
+    }),
+    1: ("CallButton", {
+        "#": {
+           1: ("Up",{}), 2: ("Down",{})
+        }
+    }),
+    2: ("PanelButton", {
+        1: ("Floor1",{}), 2: ("Floor2",{}), 3: ("Floor3",{}), 4: ("Floor4",{}), 0x10: ("DoorOpen",{}), 0x11: ("DoorClose",{}), 0xEE: ("EmergencySTOP",{})
+    }),
+    3: ("PrintChar", {
+        "#": {}
+    }),
+    0xFF: ("ERROR", {
+        0: ("AllClear",{}), 1: ("GenericERROR",{})
+    }),
+}
+            
+        
+
+
 class SerialClient(threading.Thread):
     """Busy wait watching serial port for new incomming data and pass data to subscriber"""
     def __init__(self, port='COM1', baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE):
@@ -123,11 +150,7 @@ class SerialClient(threading.Thread):
             data = self.ser.read(1)              # read one byte, blocking
             if data == "":
                 continue 
-            data = ord(data)
-            print state
-            print frame
-            print " > {}".format(data)
-            
+            data = ord(data)            
                 
             # First byte of a new frame or string
             if state == 'idh':
@@ -143,8 +166,7 @@ class SerialClient(threading.Thread):
             elif state == 'str':
                 if data == 0:
                     state = 'idh'
-                    print "Got a string"
-                    print str
+                    print "String: \"{}\"".format(str)
                     msg = "String\n------\n{}\n\n".format(str)
                     wx.CallAfter(pub.sendMessage, 'update', data=msg)
                 elif chr(data) in string.printable:
@@ -177,17 +199,38 @@ class SerialClient(threading.Thread):
                     
             if state == 'frame':
                 state = 'idh'
-                print "Got new frame"
-                print frame
+                # Parse payload data 
+                buf = payload
+                cmd = cmds
+                payload_decode = ""
+                try:
+                    while buf != []:
+                        if "#" in cmd:
+                            payload_decode = "{}{} ".format(payload_decode, buf[0])
+                            cmd = cmd["#"]
+                        else:
+                            payload_decode = payload_decode + cmd[buf[0]][0] + " "
+                            cmd = cmd[buf[0]][1]
+                        buf = buf[1:]
+                except KeyError as ke:
+                    print ke
+                    print "WARNING: Unable to decode payload data"
+                    payload_decode = "[INVALID KEY]"
+                except IndexError as ie:
+                    print ie
+                    print "WARNING: Unable to decode payload data"
+                    payload_decode = "[INVALID INDEX]"
+                
+                print "Frame: {} \"{}\"".format(frame, payload_decode)
+
+                # Print frame to window
                 id = frame[0] * (2^8) + frame[1]
                 priority = frame[2]
                 length = frame[3]
-                msg = "Frame\n------\nID: {}\nPriority: {}\nLength: {}\nPayload: {}\n\n".format(id, priority, length, payload)
-                wx.CallAfter(pub.sendMessage, 'update', data=msg)
-            
-            #except self.ser.SerialException as e:
-                #print "Serial read error: {}".format(e)
-                #break
+                #if ( length > 0 and payload[0] != 0 ):  # Filter location spam
+                if True:
+                    msg = "Frame\n------\nID: {}\nPriority: {}\nLength: {}\nPayload: {} \"{}\"\n\n".format(id, priority, length, payload, payload_decode)
+                    wx.CallAfter(pub.sendMessage, 'update', data=msg)
         
         # Close serial connection after breaking out of the running loop
         try:
@@ -386,7 +429,7 @@ class MainWindow(wx.Frame):
 if __name__ == "__main__":
     app = wx.App(False)
     
-    local_socket = ('localhost', 8081); remote_socket = ('localhost', 8082)
+    #local_socket = ('localhost', 8081); remote_socket = ('localhost', 8082)
     frame = MainWindow(None, title="Serial and Socket Logger 1")
     
     #local_socket = ('localhost', 8082); remote_socket = ('localhost', 8081)
