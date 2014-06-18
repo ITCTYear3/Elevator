@@ -181,6 +181,7 @@ class SerialClient(threading.Thread):
                 print frame
                 id = frame[0] * (2^8) + frame[1]
                 priority = frame[2]
+                length = frame[3]
                 msg = "Frame\n------\nID: {}\nPriority: {}\nLength: {}\nPayload: {}\n\n".format(id, priority, length, payload)
                 wx.CallAfter(pub.sendMessage, 'update', data=msg)
             
