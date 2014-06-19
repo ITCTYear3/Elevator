@@ -1,22 +1,23 @@
 '''
- logger.py
- Command logger via socket connection and monitor serial port for incomming data
+logger.py
+
+Command logger via socket connection and monitor serial port for incomming data
+For ElevatorControl Project, ESE semester 6
 
 Created on Jun 10, 2014
 
-@author: jmorgan1
+@author: jmorgan, cbrown
 '''
 
 import sys
 import os
 import time
 import datetime
-import random
+import string
 import threading
 import select
 import socket
 import serial
-import string
 import wx
 from wx.lib.pubsub import pub
 
@@ -31,40 +32,43 @@ known_hosts = {
     "localhost" : (30999, "localhost")
 }
 
-# Attempt to determine the local host name and address 
-# Returns a tuple (local_hostname, local_host)
+
 def getLocalHostInfo():
+    """Attempt to determine the local host name and address 
+       Returns a tuple (local_hostname, local_host)"""
     try:
         local_hostname = socket.getfqdn()
         local_host = socket.gethostbyname(local_hostname) # Use local interface IP address
-    except socket.gaierror as e:
+    except socket.gaierror:
         try:
             local_hostname = socket.gethostname()
             local_host = socket.gethostbyname(local_hostname) # Try unqualified name if fqdn fails
-        except socket.gaierror as e:
+        except socket.gaierror:
             local_hostname = "localhost"    # Last resort
             local_host = "127.0.0.1"
     return (local_hostname, local_host)
-    
-# Attempt to determine a (possibly remote) host address 
-# Returns a tuple (hostname, host), falling back to localhost on failure
+
+
 def getHostAddr(hostname):
+    """Attempt to determine a (possibly remote) host address
+       Returns a tuple (hostname, host), falling back to localhost on failure"""
     try:
         host = socket.gethostbyname(hostname)
-    except socket.gaierror as e:
+    except socket.gaierror:
         hostname = "localhost"
         host = "127.0.0.1"
     return (hostname, host)
-    
+
+
 # Get local interface details
-(local_hostname, local_host) = getLocalHostInfo();    
-    
+(local_hostname, local_host) = getLocalHostInfo();
+
 # Fall back to localhost if the local host name is not recognized
 if local_hostname not in known_hosts:
     print "Local hostname {} not found in known_hosts. Falling back to localhost".format(local_hostname)
     print "Please create a connection profile for {}".format(local_hostname)
-    local_hostname = "localhost"    
-    
+    local_hostname = "localhost"
+
 # Look up connection info for the chosen local hostname
 (local_port, remote_hostname) = known_hosts[local_hostname]
 
@@ -73,14 +77,10 @@ if remote_hostname not in known_hosts:
     print "Local hostname {} not found in known_hosts. Falling back to localhost".format(remote_hostname)
     print "Please create a connection profile for {}".format(remote_hostname)
     (local_hostname, local_host) = ("localhost", "127.0.0.1")
-    (local_port, remote_hostname) = known_hosts[local_hostname]    
+    (local_port, remote_hostname) = known_hosts[local_hostname]
 
 remote_port = known_hosts[remote_hostname][0]
 (remote_hostname, remote_host) = getHostAddr(remote_hostname)
-    
-#local_port = 31000#random.randint(1025,36000) # Choose a random unprivileged port
-#remote_host = '142.156.193.157'
-#remote_port = 31001
 
 print "Using connection profile:"
 print "  {}:{} [{}] -> {}:{} [{}]".format(local_host, local_port, local_hostname, remote_host, remote_port, remote_hostname)        
@@ -91,10 +91,10 @@ remote_socket = (remote_host, remote_port)
 
 # System command tree
 # Used for decoding payload data
-cmds = { 
+cmds = {
     0: ("Location", {
         "#": { 
-           1: ("Up",{}), 2: ("Down",{}), 3: ("Stationary",{}) 
+           1: ("Up",{}), 2: ("Down",{}), 3: ("Stationary",{})
         }
     }),
     1: ("CallButton", {
@@ -112,8 +112,7 @@ cmds = {
         0: ("AllClear",{}), 1: ("GenericERROR",{})
     }),
 }
-            
-        
+
 
 
 class SerialClient(threading.Thread):
@@ -148,11 +147,11 @@ class SerialClient(threading.Thread):
         frame = []
         while True:
             #try:                
-            data = self.ser.read(1)              # read one byte, blocking
+            data = self.ser.read(1) # read one byte, blocking
             if data == "":
-                continue 
-            data = ord(data)            
-                
+                continue
+            data = ord(data)
+            
             # First byte of a new frame or string
             if state == 'idh':
                 # Strings never start with null characters so this must be a frame
@@ -160,7 +159,6 @@ class SerialClient(threading.Thread):
                     frame = [data]
                     state = 'idl'
                 elif chr(data) in string.printable:
-                #else:
                     str = chr(data)
                     state = 'str'
             # Found a string, read until a null character
@@ -183,7 +181,7 @@ class SerialClient(threading.Thread):
             elif state == 'priority':
                 frame = frame + [data]
                 state = 'length'
-            elif state == 'length':       
+            elif state == 'length':
                 frame = frame + [data]
                 payload = []
                 length = data
@@ -191,7 +189,7 @@ class SerialClient(threading.Thread):
                     state = 'frame'
                 else:
                     state = 'payload'
-            elif state == 'payload':   
+            elif state == 'payload':
                 frame = frame + [data]
                 payload = payload + [data]
                 length = length - 1 
@@ -296,7 +294,7 @@ class SocketClient(threading.Thread):
                 print "Socket error: {}".format(e)
                 break
             
-        # Shutdown the socket after breaking out of the running loop
+        # Attempt to shutdown the socket gracefully
         try:
             self.socket.shutdown(socket.SHUT_RDWR)
         except:
@@ -421,15 +419,37 @@ class MainPanel(wx.Panel):
     def OnLog2File(self, event):
         """Called when the Log to File button is pressed"""
         dlg = wx.FileDialog(self,
-                            message="Save as...",
+                            message="Save As",
                             defaultDir=os.getcwd(),
                             wildcard="Log files (*.log)|*.log",
                             style=wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT)
         result = dlg.ShowModal()
+        
         if result == wx.ID_OK:
             path = dlg.GetPath()
             self.st_filepath.SetLabel(str(path))   # Update file path text label
+            
+            self.filepath = path    # Used by WriteFile
+            pub.subscribe(self.WriteFile, 'update') # Enable call to WriteFile when receiving new subscriber data
+        
         dlg.Destroy()
+    
+    def WriteFile(self, data):
+        try:
+            f = open(self.filepath, 'a')
+            #print "Opened file {} in append mode".format(f.name)    # Verbose debug
+            try:
+                #print "Writing \"{}\" to file {}".format(data, f.name)    # Verbose debug
+                f.write( str(data) )
+            except IOError as e:
+                print "File write error: {}".format(e)
+            finally:
+                    f.close()
+                    #print "File closed"    # Verbose debug
+            
+        except IOError as e:
+                print "File IO error: {}".format(e)
+                sys.exit(1)
 
 
 class MainWindow(wx.Frame):
@@ -460,11 +480,11 @@ class MainWindow(wx.Frame):
 if __name__ == "__main__":
     app = wx.App(False)
     
-    #local_socket = ('localhost', 8081); remote_socket = ('localhost', 8082)
+    local_socket = ('localhost', 8081); remote_socket = ('localhost', 8082) # For local client/server testing
     frame = MainWindow(None, title="Serial and Socket Logger 1")
     
-    #local_socket = ('localhost', 8082); remote_socket = ('localhost', 8081)
-    #frame2 = MainWindow(None, title="Serial and Socket Logger 2")
+    local_socket = ('localhost', 8082); remote_socket = ('localhost', 8081) # For local client/server testing
+    frame2 = MainWindow(None, title="Serial and Socket Logger 2")
     
     # Start serial thread which will monitor serial port
     # and send data to the text display on the GUI window
