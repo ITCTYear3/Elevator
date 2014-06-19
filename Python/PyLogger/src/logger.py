@@ -135,46 +135,76 @@ class MainPanel(wx.Panel):
         self.InitUI()
     
     def InitUI(self):
-        self.mainSizer = wx.BoxSizer(wx.VERTICAL)
         
-        hbox1 = wx.BoxSizer(wx.HORIZONTAL)
-        textTitle = wx.StaticText(self, label="Logs")
-        hbox1.Add(textTitle)
-        self.mainSizer.Add(hbox1, flag=wx.LEFT|wx.TOP, border=5)
+        #---- Log display and associated buttons
+        st_logTitle = wx.StaticText(self, label="Logs")
         
-        hbox2 = wx.BoxSizer(wx.HORIZONTAL)
-        self.textDisplay = wx.TextCtrl(self, value="", style=wx.TE_MULTILINE|wx.TE_READONLY)
-        hbox2.Add(self.textDisplay, proportion=1, flag=wx.EXPAND)
-        self.mainSizer.Add(hbox2, proportion=1, flag=wx.LEFT|wx.RIGHT|wx.EXPAND, border=5)
+        self.tc_logDisplay = wx.TextCtrl(self, style=wx.TE_MULTILINE|wx.TE_READONLY)
         
-        hbox3 = wx.BoxSizer(wx.HORIZONTAL)
-        btn1 = wx.Button(self, label="Clear log screen")
-        btn1.Bind(wx.EVT_BUTTON, self.OnClear)
-        hbox3.Add(btn1)
-        self.mainSizer.Add(hbox3, flag=wx.ALIGN_CENTER)
+        btn_clearLog = wx.Button(self, label="Clear log screen")
+        btn_clearLog.Bind(wx.EVT_BUTTON, self.OnClear)
         
-        hbox4 = wx.BoxSizer(wx.HORIZONTAL)
-        self.textInput = wx.TextCtrl(self, value="Test message", style=wx.TE_PROCESS_ENTER)
-        self.textInput.Bind(wx.EVT_KEY_DOWN, self.OnEnter)
-        hbox4.Add(self.textInput, proportion=1)
-        btn2 = wx.Button(self, label="Send Message")
-        btn2.Bind(wx.EVT_BUTTON, self.OnSendMsg)
-        hbox4.Add(btn2)
-        self.mainSizer.Add(hbox4, flag=wx.ALL|wx.EXPAND, border=5)
+        logs_vSizer = wx.BoxSizer(wx.VERTICAL)
+        logs_vSizer.Add(st_logTitle)
+        logs_vSizer.Add(self.tc_logDisplay, proportion=1, flag=wx.EXPAND)
+        logs_vSizer.Add(btn_clearLog, flag=wx.ALIGN_CENTER)
         
-        hbox5 = wx.BoxSizer(wx.VERTICAL)
+        logs_hSizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.AddLinearSpacer(logs_hSizer, 5)
+        logs_hSizer.Add(logs_vSizer, proportion=1, flag=wx.EXPAND)
+        self.AddLinearSpacer(logs_hSizer, 5)
         
-        btn3 = wx.Button(self, label="Log to file")
-        btn3.Bind(wx.EVT_BUTTON, self.OnLog2File)
-        hbox5.Add(btn3, flag=wx.LEFT|wx.RIGHT, border=5)
-        self.pathText = wx.StaticText(self, label="No file selected")
-        hbox5.Add(self.pathText, flag=wx.LEFT|wx.RIGHT, border=5)
-        self.mainSizer.Add(hbox5)
         
-        self.SetSizer(self.mainSizer)
+        #---- Message sending
+        self.tc_msgInput = wx.TextCtrl(self, value="Test message", style=wx.TE_PROCESS_ENTER)
+        self.tc_msgInput.Bind(wx.EVT_KEY_DOWN, self.OnEnter)
+        btn_sendMsg = wx.Button(self, label="Send Message")
+        btn_sendMsg.Bind(wx.EVT_BUTTON, self.OnSendMsg)
+        
+        sendMsg_hSizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.AddLinearSpacer(sendMsg_hSizer, 5)
+        sendMsg_hSizer.Add(self.tc_msgInput, proportion=1)
+        sendMsg_hSizer.Add(btn_sendMsg)
+        self.AddLinearSpacer(sendMsg_hSizer, 5)
+        
+        
+        #---- File logging
+        btn_log2file = wx.Button(self, label="Log to file")
+        btn_log2file.Bind(wx.EVT_BUTTON, self.OnLog2File)
+        self.st_filepath = wx.StaticText(self, label="No file selected")
+        
+        log2file_hSizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.AddLinearSpacer(log2file_hSizer, 5)
+        log2file_hSizer.Add(btn_log2file)
+        self.AddLinearSpacer(log2file_hSizer, 2)
+        log2file_hSizer.Add(self.st_filepath, flag=wx.ALIGN_CENTER)
+        self.AddLinearSpacer(log2file_hSizer, 5)
+        
+        
+        #---- Main vertical sizer
+        mainSizer = wx.BoxSizer(wx.VERTICAL)
+        
+        self.AddLinearSpacer(mainSizer, 5)
+        mainSizer.Add(logs_hSizer, proportion=1, flag=wx.EXPAND)
+        self.AddLinearSpacer(mainSizer, 5)
+        mainSizer.Add(sendMsg_hSizer, flag=wx.EXPAND)
+        self.AddLinearSpacer(mainSizer, 5)
+        mainSizer.Add(log2file_hSizer)
+        self.AddLinearSpacer(mainSizer, 5)
+        
+        self.SetSizer(mainSizer)    # Associate sizer to wx.Panel control
+        self.Layout()
     
+    def AddLinearSpacer(self, boxsizer, pixelSpacing):
+        """A one-dimensional spacer along only the major axis for any BoxSizer"""
+        orientation = boxsizer.GetOrientation()
+        if orientation == wx.HORIZONTAL:
+            boxsizer.Add( (pixelSpacing, 0) )
+        elif orientation == wx.VERTICAL:
+            boxsizer.Add( (0, pixelSpacing) )
+   
     def OnEnter(self, event):
-        """Handle when the return key is pressed within textInput field"""
+        """Handle when the return key is pressed within tc_msgInput field"""
         key = event.GetKeyCode()
         if key == wx.WXK_RETURN:
             self.OnSendMsg(event)   # Pass off to OnSendMsg function
@@ -182,7 +212,7 @@ class MainPanel(wx.Panel):
     
     def OnSendMsg(self, event):
         """Called when the send button is pressed"""
-        message = self.textInput.Value  # Get string from input field
+        message = self.tc_msgInput.Value  # Get string from input field
         if message: # Only send if non-empty string
             try:
                 print "Sending to {}:{}".format(remote_host, remote_port)
@@ -191,17 +221,17 @@ class MainPanel(wx.Panel):
                 client.send(message)
                 client.shutdown(socket.SHUT_RDWR)
                 client.close()
-                self.textInput.Clear()  # Clear text input field after sending successfully
+                self.tc_msgInput.Clear()  # Clear text input field after sending successfully
             except socket.error as e:
                 print "Socket error: {}".format(e)
     
     def OnClear(self, event):
         """Called when the clear logs button is pressed"""
-        self.textDisplay.Clear()
+        self.tc_logDisplay.Clear()
     
     def UpdateDisplay(self, data):
         """Called when the window panel receives an event from pub.sendMessage with data"""
-        self.textDisplay.AppendText( str(data) )
+        self.tc_logDisplay.AppendText( str(data) )
     
     def OnLog2File(self, event):
         """Called when the Log to File button is pressed"""
@@ -213,12 +243,12 @@ class MainPanel(wx.Panel):
         result = dlg.ShowModal()
         if result == wx.ID_OK:
             path = dlg.GetPath()
+            self.st_filepath.SetLabel(str(path))   # Update file path text label
         dlg.Destroy()
-        self.pathText.SetLabel(str(path))   # Update file path text label
 
 
 class MainWindow(wx.Frame):
-    def __init__(self, parent, title, size=(500, 400)):
+    def __init__(self, parent, title, size=(500, 500)):
         wx.Frame.__init__(self, parent, title=title, size=size)
         
         self.Bind(wx.EVT_CLOSE, self.OnClose)
