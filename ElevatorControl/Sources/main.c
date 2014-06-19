@@ -16,6 +16,7 @@
 #include "led7.h"
 #include "sci.h"
 #include "mcutilib.h"
+#include "serialcan.h"
 
 #define LED1    PTS_PTS2
 #define LED2    PTS_PTS3
@@ -25,9 +26,9 @@
 #define CM_PER_FLOOR 15
 
 // Set local node ID (unique to each node)
-//#define MSCAN_NODE_ID   MSCAN_CTL_ID
+#define MSCAN_NODE_ID   MSCAN_CTL_ID
 //#define MSCAN_NODE_ID   MSCAN_CAR_ID
-#define MSCAN_NODE_ID   MSCAN_FL1_ID
+//#define MSCAN_NODE_ID   MSCAN_FL1_ID
 //#define MSCAN_NODE_ID   MSCAN_FL2_ID
 //#define MSCAN_NODE_ID   MSCAN_FL3_ID
 
@@ -67,6 +68,8 @@ void main(void) {
     
     // Clear all MSCAN receiver flags (by setting bits)
     CANRFLG = (CANRFLG_RXF_MASK | CANRFLG_OVRIF_MASK | CANRFLG_CSCIF_MASK | CANRFLG_WUPIF_MASK);
+   
+    sci_init();
     
     msleep(16); // wait 16ms before init LCD
     LCDinit();  // initialize LCD, cursor should be visible with blink after
@@ -76,11 +79,9 @@ void main(void) {
     
     lcd_init();
     
-    sci_init();
-    
     EnableInterrupts;
     
-    sci_sendBytes((byte*)"Ready", 5);
+    sci_sendBytes((byte*)"Ready", 6);
     
     for(;;) {
         /*
@@ -124,14 +125,16 @@ void controller() {
     byte update_lcd = 1;
     byte cycle_count = 0;
     word car_height, distance;
-    byte cur_floor;
+    byte cur_floor, last_floor = 0;
     char buf[64];
     //byte b;
     
     dist_init();
     
-    for(;;) {
-        distance = dist_read();
+    for(;;) {  
+    	delay_ms(100);
+        distance = dist_read()/2;	// div2 is a temporary kludge	   
+        last_floor = cur_floor;
         if ( distance > (7*5*CM_PER_FLOOR) ) {
             car_height = 999;
             cur_floor = 0;
@@ -140,7 +143,9 @@ void controller() {
             car_height = (10*distance)/4;
             cur_floor = 1 + ((car_height / 10) / CM_PER_FLOOR);
             led7_write(led7_table[cur_floor]);
-            update_floor(cur_floor);
+            if ( cur_floor != last_floor ) {
+            	update_floor(cur_floor);
+            }
         }
         
         cycle_count++;
@@ -154,21 +159,25 @@ void controller() {
             update_lcd = 0;
             
             if ( cur_floor == 0 ) {
-                lcd_goto(0x00);
-                lcd_puts("No car   ");
+                //lcd_goto(0x00);
+                //lcd_puts("No car   ");  
+                LCDclear();
+                LCDputs("No car");
             } else {
-                itoa(car_height, 10, 3, "", buf);   
-                lcd_goto(0x00);
-                lcd_puts(buf);
-                lcd_puts("mm/F"); 
-                itoa(cur_floor, 10, 2, "", buf);   
-                lcd_puts(buf+1);
+                //itoa(car_height, 10, 3, "", buf);   
+                //lcd_goto(0x00);
+                //lcd_puts(buf);
+                //lcd_puts("mm/F"); 
+                //itoa(cur_floor, 10, 2, "", buf);   
+                //lcd_puts(buf+1);
+                LCDclear();
+                LCDprintf("%dmm/F%d", car_height, cur_floor);
             }
         }
         
         // CAN bus <-> serial link
         // Check for new incoming messages and send out received messages via serial
-        runSerialCAN();
+        runSerialCAN(MSCAN_NODE_ID);
         /*
         while ( sci_bytesAvailable() ) {
             sci_readByte(&b);
@@ -232,8 +241,7 @@ void controller() {
                     break;
             }
         }
-        msleep(100);
-    }
+    }  
 }
 
 /*
@@ -243,7 +251,9 @@ void controller() {
 
 void button_up(byte my_floor) {
     CANframe txframe;   // Transmitted CAN frame
-    LED1 = 1; 
+    LED1 = 1; 							  
+    LCDclear();
+    LCDprintf("Floor: %d\nDir: %s", my_floor, "up");
     // Message to controller; up button pressed
     txframe.id = MSCAN_CTL_ID;
     txframe.priority = 0x01;
@@ -256,7 +266,9 @@ void button_up(byte my_floor) {
 
 void button_down(byte my_floor) {
     CANframe txframe;   // Transmitted CAN frame
-    LED2 = 1;
+    LED2 = 1;	 
+    LCDclear();
+    LCDprintf("Floor: %d\nDir: %s", my_floor, "down");
     // Message to controller; down button pressed
     txframe.id = MSCAN_CTL_ID;
     txframe.priority = 0x01;
@@ -288,7 +300,7 @@ void callbox(byte my_floor) {
     if(!SW1) sw1_pressed = 0;
     if(!SW2) sw2_pressed = 0;
     
-    runSerialCAN();
+    runSerialCAN(MSCAN_NODE_ID);
     
     if(data_available()) {
         

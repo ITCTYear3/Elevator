@@ -7,6 +7,7 @@
 #include "utils.h"
 #include "timer.h"
 #include "lcd.h"
+#include "sci.h"
 
 
 static void LCDcmd(byte cmd);
@@ -95,9 +96,12 @@ void LCDputc(char c) {
 }
 
 /* Write string to LCD */
-void LCDputs(const char *str) {
+void LCDputs(const char *str) {	 
+#ifdef LCD_SERIAL
+	while ( ! sci_sendBytes((byte*)str, strlen(str)+1) );
+#endif
     while(*str)
-        LCDputc(*str++);
+        LCDputc(*str++);  
 }
 
 #pragma MESSAGE DISABLE C1420   // Function call result ignored warning disable (for vsprintf)
@@ -193,6 +197,7 @@ static void LCDcmd(byte cmd) {
     msleep(1);
 }
 
+#define LCD_SERIAL
 /* Send LCD data */
 static void LCDdata(byte data) {
     // preamble
@@ -212,6 +217,7 @@ static void LCDdata(byte data) {
     
     // wait for command to finish
     msleep(1);
+   
 }
 
 /* Write to character generator RAM */
