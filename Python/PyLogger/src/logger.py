@@ -26,8 +26,8 @@ from wx.lib.pubsub import pub
 # The remote host must also be known so that the remote port can be looked up
 #     {local hostname} : ( {local port}, {remote hostname} )
 known_hosts = {
-    "A3146-JM" : (31000, "A3146-04"),
-    "A3146-04" : (31001, "A3146-JM"),
+    "A3146-08.conestogac.on.ca" : (31000, "A3146-04.conestogac.on.ca"),
+    "A3146-04.conestogac.on.ca" : (31001, "A3146-08.conestogac.on.ca"),
     "Chris-PC" : (31000, "Chris-PC"),
     "localhost" : (30999, "localhost")
 }
@@ -83,7 +83,7 @@ remote_port = known_hosts[remote_hostname][0]
 (remote_hostname, remote_host) = getHostAddr(remote_hostname)
 
 print "Using connection profile:"
-print "  {}:{} [{}] -> {}:{} [{}]".format(local_host, local_port, local_hostname, remote_host, remote_port, remote_hostname)        
+print "  {}:{} [{}] -> {}:{} [{}]".format(local_host, local_port, local_hostname, remote_host, remote_port, remote_hostname)
 
 local_socket = (local_host, local_port)
 remote_socket = (remote_host, remote_port)
@@ -309,9 +309,69 @@ class SocketClient(threading.Thread):
         return timestamp + " " + string
 
 
-class MainPanel(wx.Panel):
-    def __init__(self, parent):
-        wx.Panel.__init__(self, parent)
+class NodeEmuPanel(wx.Panel):
+    """CAN Node Emulation"""
+    def __init__(self, parent, style):
+        wx.Panel.__init__(self, parent=parent, style=style)
+        
+        self.InitUI()
+    
+    def InitUI(self):
+        
+        #---- Node sizers
+        numFloors = 3
+        
+        nodeSizer = wx.BoxSizer(wx.VERTICAL)
+        self.AddLinearSpacer(nodeSizer, 5)
+        for floor in xrange(1, numFloors+1):
+            nodeSizer.Add(self.AddNodeCtrl(floor))
+            self.AddLinearSpacer(nodeSizer, 5)
+        
+        
+        #---- Main horizontal sizer
+        hSizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.AddLinearSpacer(hSizer, 5)
+        hSizer.Add(nodeSizer)
+        self.AddLinearSpacer(hSizer, 5)
+        
+        
+        #---- Main vertical sizer
+        mainSizer = wx.BoxSizer(wx.VERTICAL)
+        self.AddLinearSpacer(mainSizer, 5)
+        mainSizer.Add(hSizer)
+        self.AddLinearSpacer(mainSizer, 5)
+        
+        self.SetSizer(mainSizer)    # Associate sizer to wx.Panel control
+        self.Layout()
+    
+    def AddLinearSpacer(self, boxsizer, pixelSpacing):
+        """A one-dimensional spacer along only the major axis for any BoxSizer"""
+        orientation = boxsizer.GetOrientation()
+        if orientation == wx.HORIZONTAL:
+            boxsizer.Add( (pixelSpacing, 0) )
+        elif orientation == wx.VERTICAL:
+            boxsizer.Add( (0, pixelSpacing) )
+    
+    def AddNodeCtrl(self, floor):
+        st_NodeTitle = wx.StaticText(self, label="Node {}".format(floor))
+        
+        btn_Node1 = wx.Button(self, label="Up")
+        btn_Node2 = wx.Button(self, label="Down")
+        
+        hSizer = wx.BoxSizer(wx.HORIZONTAL)
+        hSizer.Add(btn_Node1)
+        hSizer.Add(btn_Node2)
+        
+        vSizer = wx.BoxSizer(wx.VERTICAL)
+        vSizer.Add(st_NodeTitle, flag=wx.ALIGN_CENTER)
+        vSizer.Add(hSizer)
+        
+        return vSizer
+
+
+class LoggingPanel(wx.Panel):
+    def __init__(self, parent, style):
+        wx.Panel.__init__(self, parent=parent, style=style)
         
         pub.subscribe(self.UpdateDisplay, 'update')
         
@@ -398,10 +458,11 @@ class MainPanel(wx.Panel):
         message = self.tc_msgInput.Value  # Get string from input field
         if message: # Only send if non-empty string
             try:
-                print "Sending to {}:{}".format(remote_host, remote_port)
+                print "Sending to {}:{} ...".format(remote_host, remote_port),
                 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 client.connect(remote_socket)
                 client.send(message)
+                print "Sent"
                 client.shutdown(socket.SHUT_RDWR)
                 client.close()
                 self.tc_msgInput.Clear()  # Clear text input field after sending successfully
@@ -453,13 +514,25 @@ class MainPanel(wx.Panel):
 
 
 class MainWindow(wx.Frame):
-    def __init__(self, parent, title, size=(500, 500)):
-        wx.Frame.__init__(self, parent, title=title, size=size)
+    def __init__(self, parent, title, size=(800, 500)):
+        wx.Frame.__init__(self, parent=parent, title=title, size=size)
         
         self.Bind(wx.EVT_CLOSE, self.OnClose)
         
-        self.panel = MainPanel(self)
-        self.Center()
+        framePanel = wx.Panel(self)
+        framePanel.BackgroundColour = (235, 230, 220)   # Beige alert!
+        
+        logPanel = LoggingPanel(parent=framePanel, style=wx.BORDER_SUNKEN)
+        nodeEmuPanel = NodeEmuPanel(parent=framePanel, style=wx.BORDER_SUNKEN)
+        
+        mainSizer = wx.BoxSizer(wx.HORIZONTAL)
+        mainSizer.Add(logPanel, proportion=1, flag=wx.EXPAND)
+        mainSizer.Add(nodeEmuPanel, proportion=1, flag=wx.EXPAND)
+        mainSizer.Layout()
+        
+        framePanel.SetSizer(mainSizer)
+        
+        #self.Center()
         self.Show()
         
         # Start thread to listen for incomming socket connections
@@ -480,11 +553,11 @@ class MainWindow(wx.Frame):
 if __name__ == "__main__":
     app = wx.App(False)
     
-    local_socket = ('localhost', 8081); remote_socket = ('localhost', 8082) # For local client/server testing
+    #local_socket = ('localhost', 8081); remote_socket = ('localhost', 8082) # For local client/server testing
     frame = MainWindow(None, title="Serial and Socket Logger 1")
     
-    local_socket = ('localhost', 8082); remote_socket = ('localhost', 8081) # For local client/server testing
-    frame2 = MainWindow(None, title="Serial and Socket Logger 2")
+    #local_socket = ('localhost', 8082); remote_socket = ('localhost', 8081) # For local client/server testing
+    #frame2 = MainWindow(None, title="Serial and Socket Logger 2")
     
     # Start serial thread which will monitor serial port
     # and send data to the text display on the GUI window
