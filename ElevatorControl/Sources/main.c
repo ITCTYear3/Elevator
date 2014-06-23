@@ -311,6 +311,7 @@ void callbox(byte my_floor) {
                 floor = rxmessage[1];
                 direction = rxmessage[2];
                 
+                led7_write(led7_table[floor]);
                 LCDclear();
                 LCDprintf("Floor: %d\nDir: %d", floor, direction);
                 break;

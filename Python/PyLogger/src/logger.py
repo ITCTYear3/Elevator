@@ -114,7 +114,6 @@ cmds = {
 }
 
 
-
 class SerialClient(threading.Thread):
     """Busy wait watching serial port for new incomming data and pass data to subscriber"""
     def __init__(self, port='COM1', baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE):
@@ -141,6 +140,21 @@ class SerialClient(threading.Thread):
     
     def run(self):
         self.reader_sm()
+        
+    def SendFrame(self, id, priority=1, payload=[]):
+        idh = int(id/256) # upper byte
+        idl = id % 256    # lower byte
+        length = len(payload)
+        frame = [idh, idl, priority, length, payload]
+        print "Sending frame: {}".format(frame)
+        while len(frame) > 1:
+            print frame[0]
+            self.ser.write(chr(frame[0]))
+            frame = frame[1:]
+        while len(payload) > 0:
+            print payload[0]
+            self.ser.write(chr(payload[0]))
+            payload = payload[1:]
         
     def reader_sm(self):
         state = 'idh'
@@ -356,7 +370,9 @@ class NodeEmuPanel(wx.Panel):
         st_NodeTitle = wx.StaticText(self, label="Node {}".format(floor))
         
         btn_Node1 = wx.Button(self, label="Up")
+        btn_Node1.Bind(wx.EVT_BUTTON, lambda evt: serial.SendFrame(id=1, payload=[1, floor, 1]) ) # 1=up
         btn_Node2 = wx.Button(self, label="Down")
+        btn_Node2.Bind(wx.EVT_BUTTON, lambda evt: serial.SendFrame(id=1, payload=[1, floor, 2]) ) # 2=down
         
         hSizer = wx.BoxSizer(wx.HORIZONTAL)
         hSizer.Add(btn_Node1)
@@ -549,18 +565,19 @@ class MainWindow(wx.Frame):
         if result == wx.ID_YES:
             self.Destroy()
 
-
+global serial
+            
 if __name__ == "__main__":
     app = wx.App(False)
+    
+    # Start serial thread which will monitor serial port
+    # and send data to the text display on the GUI window
+    serial = SerialClient(port='COM11', baudrate=9600)
     
     #local_socket = ('localhost', 8081); remote_socket = ('localhost', 8082) # For local client/server testing
     frame = MainWindow(None, title="Serial and Socket Logger 1")
     
     #local_socket = ('localhost', 8082); remote_socket = ('localhost', 8081) # For local client/server testing
     #frame2 = MainWindow(None, title="Serial and Socket Logger 2")
-    
-    # Start serial thread which will monitor serial port
-    # and send data to the text display on the GUI window
-    serial = SerialClient(port='COM11', baudrate=9600)
     
     app.MainLoop()
