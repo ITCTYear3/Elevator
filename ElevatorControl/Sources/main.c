@@ -26,8 +26,8 @@
 #define CM_PER_FLOOR 15
 
 // Set local node ID (unique to each node)
-#define MSCAN_NODE_ID   MSCAN_CTL_ID
-//#define MSCAN_NODE_ID   MSCAN_CAR_ID
+//#define MSCAN_NODE_ID   MSCAN_CTL_ID
+#define MSCAN_NODE_ID   MSCAN_CAR_ID
 //#define MSCAN_NODE_ID   MSCAN_FL1_ID
 //#define MSCAN_NODE_ID   MSCAN_FL2_ID
 //#define MSCAN_NODE_ID   MSCAN_FL3_ID
@@ -243,6 +243,141 @@ void controller() {
         }
     }  
 }
+
+
+/*
+ * Elevator car functionality
+ * - 
+ */
+void car(void) {
+    byte ret;
+    byte sw1_pressed = 0, sw2_pressed = 0;
+    char *command, *floor, *direction;
+    byte cur_floor;
+    
+    CANframe txframe;               // Transmitted CAN frames
+    byte rxmessage[PAYLOAD_SIZE];   // Received data payload
+    
+    
+    // Message to controller; floor 1
+    txframe.id = MSCAN_CTL_ID;
+    txframe.priority = 0x01;
+    txframe.length = 2;
+    txframe.payload[0] = CMD_BUTTON_CAR;
+    //txframe.payload[2] = DIRECTION_STATIONARY; 
+    
+    
+    if(SW1 && !sw1_pressed) {
+        sw1_pressed = 1;
+        LED1 = 1;      
+            
+        txframe.payload[1] = FLOOR1;          
+        ret = CANsend(&txframe);
+        if(ret) {
+            // Message could not be sent!
+        }
+    }
+    if(SW2 && !sw2_pressed) {
+        sw2_pressed = 1;
+        LED2 = 1;      
+        
+        txframe.payload[1] = FLOOR2;         
+        ret = CANsend(&txframe);
+        if(ret) {
+            // Message could not be sent!
+        }
+    } 
+    /*if(SW3 && !sw3_pressed) {
+        sw3_pressed = 1;
+        LED3 = 1;      
+        
+        txframe.payload[1] = FLOOR3;         
+        ret = CANsend(&txframe);
+        if(ret) {
+            // Message could not be sent!
+        }
+    }*/
+    
+    // CAN bus <-> serial link
+    // Check for new incoming messages and send out received messages via serial
+    runSerialCAN(MSCAN_NODE_ID);
+    
+    if(data_available()) {
+        
+        CANget(rxmessage);
+    
+        
+        switch(rxmessage[0]) {
+            case CMD_LOCATION:
+                command = "Loc";
+                break;
+            case CMD_BUTTON_CALL:
+                command = "Call";
+                break;
+            case CMD_BUTTON_CAR:
+                command = "Car";
+                break;
+            case CMD_DISP_APPEND:
+                command = "Disp";
+                break;
+            case CMD_ERROR:
+                command = "Err";
+                break;
+            default:
+                // Command didn't match known commands!
+                goto car_cmd_error;
+        }
+        
+        switch(rxmessage[1]) {
+            case FLOOR1:
+                floor = "1";
+                cur_floor = 1;
+                break;
+            case FLOOR2:
+                floor = "2";  
+                cur_floor = 2;
+                break;
+            case FLOOR3:
+                floor = "3"; 
+                cur_floor = 3;
+                break;
+            default:
+                // Command didn't match known commands!
+                goto car_cmd_error;
+        }
+        
+
+        // Turn off LED when car arrives at requested floor
+        if ( rxmessage[0] == CMD_LOCATION ) {           
+          if( rxmessage[1] == FLOOR1 ) {
+              LED1 = 0;
+          }  
+          if( rxmessage[1] == FLOOR2 ) {
+              LED2 = 0;
+          }     
+          /*if( rxmessage[1] == FLOOR3 ) {
+              LED3 = 0;
+          }*/
+        }
+        
+        led7_write(led7_table[cur_floor]); 
+        
+        
+        //LCDhome();
+        //LCDclear();
+        //LCDprintf("Command: %s\nFloor%s Dir: %s", command, floor, direction);
+        
+        return;
+        
+car_cmd_error:
+        return;
+       // LCDhome();
+       // LCDclear();
+        //LCDprintf("Error in\ncommand");
+        
+    }
+}
+
 
 /*
  * Callbox functionality

@@ -332,27 +332,29 @@ class NodeEmuPanel(wx.Panel):
     
     def InitUI(self):
         
-        #---- Node sizers
-        numFloors = 3
+        self.numFloors = 3
         
-        nodeSizer = wx.BoxSizer(wx.VERTICAL)
+        #---- Node sizers
+        nodeSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.AddLinearSpacer(nodeSizer, 5)
-        for floor in xrange(1, numFloors+1):
+        for floor in xrange(1, self.numFloors+1):
             nodeSizer.Add(self.AddNodeCtrl(floor))
             self.AddLinearSpacer(nodeSizer, 5)
         
         
-        #---- Main horizontal sizer
-        hSizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.AddLinearSpacer(hSizer, 5)
-        hSizer.Add(nodeSizer)
-        self.AddLinearSpacer(hSizer, 5)
+        #---- Elevator car sizer
+        carSizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.AddLinearSpacer(carSizer, 5)
+        carSizer.Add(self.AddCarCtrl())
+        self.AddLinearSpacer(carSizer, 5)
         
         
         #---- Main vertical sizer
         mainSizer = wx.BoxSizer(wx.VERTICAL)
         self.AddLinearSpacer(mainSizer, 5)
-        mainSizer.Add(hSizer)
+        mainSizer.Add(nodeSizer)
+        self.AddLinearSpacer(mainSizer, 5)
+        mainSizer.Add(carSizer)
         self.AddLinearSpacer(mainSizer, 5)
         
         self.SetSizer(mainSizer)    # Associate sizer to wx.Panel control
@@ -367,22 +369,42 @@ class NodeEmuPanel(wx.Panel):
             boxsizer.Add( (0, pixelSpacing) )
     
     def AddNodeCtrl(self, floor):
-        st_NodeTitle = wx.StaticText(self, label="Node {}".format(floor))
+        """Callbox interface"""
+        st_NodeTitle = wx.StaticText(self, label="Callbox {}".format(floor))
         
         btn_Node1 = wx.Button(self, label="Up")
-        btn_Node1.Bind(wx.EVT_BUTTON, lambda evt: serial.SendFrame(id=1, payload=[1, floor, 1]) ) # 1=up
+        btn_Node1.Bind(wx.EVT_BUTTON, lambda evt: serialObj.SendFrame(id=1, payload=[1, floor, 1]) ) # 1=up
         btn_Node2 = wx.Button(self, label="Down")
-        btn_Node2.Bind(wx.EVT_BUTTON, lambda evt: serial.SendFrame(id=1, payload=[1, floor, 2]) ) # 2=down
+        btn_Node2.Bind(wx.EVT_BUTTON, lambda evt: serialObj.SendFrame(id=1, payload=[1, floor, 2]) ) # 2=down
+        
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(st_NodeTitle, flag=wx.ALIGN_CENTER)
+        sizer.Add(btn_Node1)
+        self.AddLinearSpacer(sizer, 1)
+        sizer.Add(btn_Node2)
+        
+        return sizer
+    
+    def AddCarCtrl(self):
+        """Elevator car interface"""
+        st_CarTitle = wx.StaticText(self, label="Elevator Car")
+        
+        btn_emerg = wx.Button(self, label="Emergency Stop")
         
         hSizer = wx.BoxSizer(wx.HORIZONTAL)
-        hSizer.Add(btn_Node1)
-        hSizer.Add(btn_Node2)
+        for floor in xrange(1, self.numFloors+1):
+            btn_floor = wx.Button(self, label="Floor {}".format(floor))
+            hSizer.Add(btn_floor)
+            self.AddLinearSpacer(hSizer, 5)
         
-        vSizer = wx.BoxSizer(wx.VERTICAL)
-        vSizer.Add(st_NodeTitle, flag=wx.ALIGN_CENTER)
-        vSizer.Add(hSizer)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(st_CarTitle, flag=wx.ALIGN_CENTER)
+        self.AddLinearSpacer(sizer, 1)
+        sizer.Add(hSizer)
+        self.AddLinearSpacer(sizer, 1)
+        sizer.Add(btn_emerg)
         
-        return vSizer
+        return sizer
 
 
 class LoggingPanel(wx.Panel):
@@ -565,14 +587,17 @@ class MainWindow(wx.Frame):
         if result == wx.ID_YES:
             self.Destroy()
 
-global serial
-            
+
+# Used by node emulation buttons to send messages over serial
+# TODO: Change this into something that doesn't rely on a global variable
+global serialObj
+
 if __name__ == "__main__":
     app = wx.App(False)
     
     # Start serial thread which will monitor serial port
     # and send data to the text display on the GUI window
-    serial = SerialClient(port='COM11', baudrate=9600)
+    serialObj = SerialClient(port='COM11', baudrate=9600)
     
     #local_socket = ('localhost', 8081); remote_socket = ('localhost', 8082) # For local client/server testing
     frame = MainWindow(None, title="Serial and Socket Logger 1")
