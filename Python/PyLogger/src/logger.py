@@ -119,6 +119,9 @@ class SerialClient(threading.Thread):
     def __init__(self, port='COM1', baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE):
         threading.Thread.__init__(self)
         
+        if port == 'COM1':
+            print "Defaulting to port COM1"
+        
         self.ser = serial.Serial()
         self.ser.port     = port
         self.ser.baudrate = baudrate
@@ -142,25 +145,27 @@ class SerialClient(threading.Thread):
         self.reader_sm()
         
     def SendFrame(self, id, priority=1, payload=[]):
+        """Write frame data to serial port"""
         idh = int(id/256) # upper byte
         idl = id % 256    # lower byte
         length = len(payload)
         frame = [idh, idl, priority, length, payload]
         print "Sending frame: {}".format(frame)
         while len(frame) > 1:
-            print frame[0]
+            #print frame[0]    # Verbose debug
             self.ser.write(chr(frame[0]))
             frame = frame[1:]
         while len(payload) > 0:
-            print payload[0]
+            #print payload[0]  # Verbose debug
             self.ser.write(chr(payload[0]))
             payload = payload[1:]
         
     def reader_sm(self):
+        """Poll serial port for incomming data and
+           parse it to determine if it is a frame or a plain string"""
         state = 'idh'
         frame = []
         while True:
-            #try:                
             data = self.ser.read(1) # read one byte, blocking
             if data == "":
                 continue
@@ -183,20 +188,19 @@ class SerialClient(threading.Thread):
                     msg = "String\n------\n{}\n\n".format(str)
                     wx.CallAfter(pub.sendMessage, 'update', data=msg)
                 elif chr(data) in string.printable:
-                #elif True:
-                    str = str + chr(data)
+                    str += chr(data)
                 else:
                     state = 'idh'
                     print "Unprintable string; realigning..."
             # Found a frame, read the remaining bytes
             elif state == 'idl':
-                frame = frame + [data]
+                frame += [data]
                 state = 'priority'
             elif state == 'priority':
-                frame = frame + [data]
+                frame += [data]
                 state = 'length'
             elif state == 'length':
-                frame = frame + [data]
+                frame += [data]
                 payload = []
                 length = data
                 if length == 0:
@@ -204,12 +208,12 @@ class SerialClient(threading.Thread):
                 else:
                     state = 'payload'
             elif state == 'payload':
-                frame = frame + [data]
-                payload = payload + [data]
-                length = length - 1 
+                frame += [data]
+                payload += [data]
+                length = length - 1
                 if length == 0:
                     state = 'frame'
-                    
+            
             if state == 'frame':
                 state = 'idh'
                 # Parse payload data 
@@ -222,26 +226,27 @@ class SerialClient(threading.Thread):
                             payload_decode = "{}{} ".format(payload_decode, buf[0])
                             cmd = cmd["#"]
                         else:
-                            payload_decode = payload_decode + cmd[buf[0]][0] + " "
+                            payload_decode += cmd[buf[0]][0] + " "
                             cmd = cmd[buf[0]][1]
                         buf = buf[1:]
                 except KeyError as ke:
-                    print ke
+                    #print ke
                     print "WARNING: Unable to decode payload data"
                     payload_decode = "[INVALID KEY]"
                 except IndexError as ie:
-                    print ie
+                    #print ie
                     print "WARNING: Unable to decode payload data"
                     payload_decode = "[INVALID INDEX]"
                 
-                print "Frame: {} \"{}\"".format(frame, payload_decode)
-
+                payload_decode = payload_decode.strip() # Strip out any leading or trailing whitespace
+                print "Frame received: {} \"{}\"".format(frame, payload_decode)
+                
                 # Print frame to window
                 id = frame[0] * (2^8) + frame[1]
                 priority = frame[2]
                 length = frame[3]
-                #if ( length > 0 and payload[0] != 0 ):  # Filter location spam
-                if True:
+                if ( length > 0 and payload[0] != 0 ):  # Filter location spam
+                #if True:
                     msg = "Frame\n------\nID: {}\nPriority: {}\nLength: {}\nPayload: {} \"{}\"\n\n".format(id, priority, length, payload, payload_decode)
                     wx.CallAfter(pub.sendMessage, 'update', data=msg)
         
@@ -372,10 +377,15 @@ class NodeEmuPanel(wx.Panel):
         """Callbox interface"""
         st_NodeTitle = wx.StaticText(self, label="Callbox {}".format(floor))
         
-        btn_Node1 = wx.Button(self, label="Up")
-        btn_Node1.Bind(wx.EVT_BUTTON, lambda evt: serialObj.SendFrame(id=1, payload=[1, floor, 1]) ) # 1=up
-        btn_Node2 = wx.Button(self, label="Down")
-        btn_Node2.Bind(wx.EVT_BUTTON, lambda evt: serialObj.SendFrame(id=1, payload=[1, floor, 2]) ) # 2=down
+        btn_Node1 = wx.ToggleButton(self, label="Up")
+        #btn_Node1.Bind(wx.EVT_BUTTON, lambda event: serialObj.SendFrame(id=1, payload=[1, floor, 1]) ) # 1=up
+        btn_Node1.Bind(wx.EVT_TOGGLEBUTTON,
+                       lambda event: self.OnToggleClick(event, btn_Node1, id=1, payload=[1, floor, 1]) )
+        
+        btn_Node2 = wx.ToggleButton(self, label="Down")
+        #btn_Node2.Bind(wx.EVT_BUTTON, lambda event: serialObj.SendFrame(id=1, payload=[1, floor, 2]) ) # 2=down
+        btn_Node2.Bind(wx.EVT_TOGGLEBUTTON,
+                       lambda event: self.OnToggleClick(event, btn_Node2, id=1, payload=[1, floor, 2]) )
         
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(st_NodeTitle, flag=wx.ALIGN_CENTER)
@@ -389,11 +399,17 @@ class NodeEmuPanel(wx.Panel):
         """Elevator car interface"""
         st_CarTitle = wx.StaticText(self, label="Elevator Car")
         
-        btn_emerg = wx.Button(self, label="Emergency Stop")
+        btn_emerg = wx.ToggleButton(self, label="Emergency Stop")
+        #btn_emerg.Bind(wx.EVT_TOGGLEBUTTON, lambda event: serialObj.SendFrame(id=1, payload=[2, 0xEE]) ) # 0xEE=emergency stop
+        btn_emerg.Bind(wx.EVT_TOGGLEBUTTON,
+                       lambda event: self.OnToggleClick(event, btn_emerg, id=1, payload=[2, 0xEE]) )
         
         hSizer = wx.BoxSizer(wx.HORIZONTAL)
         for floor in xrange(1, self.numFloors+1):
-            btn_floor = wx.Button(self, label="Floor {}".format(floor))
+            btn_floor = wx.ToggleButton(self, label="Floor {}".format(floor))
+            #btn_floor.Bind(wx.EVT_TOGGLEBUTTON, lambda event: serialObj.SendFrame(id=1, payload=[2, floor]) )
+            btn_floor.Bind(wx.EVT_TOGGLEBUTTON,
+                           lambda event, btn=btn_floor, f=floor: self.OnToggleClick(event, btn, id=1, payload=[2, f]) )
             hSizer.Add(btn_floor)
             self.AddLinearSpacer(hSizer, 5)
         
@@ -405,6 +421,15 @@ class NodeEmuPanel(wx.Panel):
         sizer.Add(btn_emerg)
         
         return sizer
+    
+    def OnToggleClick(self, event, button, id, payload):
+        """Change colour of toggle button when pressed and
+           Send out message over serial"""
+        if button.GetValue():
+            button.SetBackgroundColour("Yellow")
+            serialObj.SendFrame(id=id, payload=payload)
+        else:
+            button.SetBackgroundColour(wx.NullColour)
 
 
 class LoggingPanel(wx.Panel):
