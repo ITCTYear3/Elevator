@@ -230,11 +230,11 @@ class SerialClient(threading.Thread):
                             cmd = cmd[buf[0]][1]
                         buf = buf[1:]
                 except KeyError as ke:
-                    #print ke
+                    print ke
                     print "WARNING: Unable to decode payload data"
                     payload_decode = "[INVALID KEY]"
                 except IndexError as ie:
-                    #print ie
+                    print ie
                     print "WARNING: Unable to decode payload data"
                     payload_decode = "[INVALID INDEX]"
                 
@@ -245,8 +245,8 @@ class SerialClient(threading.Thread):
                 id = frame[0] * (2^8) + frame[1]
                 priority = frame[2]
                 length = frame[3]
-                if ( length > 0 and payload[0] != 0 ):  # Filter location spam
-                #if True:
+                #if ( length > 0 and payload[0] != 0 ):  # Filter location spam
+                if True:
                     msg = "Frame\n------\nID: {}\nPriority: {}\nLength: {}\nPayload: {} \"{}\"\n\n".format(id, priority, length, payload, payload_decode)
                     wx.CallAfter(pub.sendMessage, 'update', data=msg)
         
