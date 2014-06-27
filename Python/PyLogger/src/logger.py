@@ -17,6 +17,7 @@ import string
 import threading
 import select
 import socket
+import hashlib
 import serial
 import wx
 from wx.lib.pubsub import pub
@@ -580,6 +581,8 @@ class MainWindow(wx.Frame):
     def __init__(self, parent, title, size=(800, 500)):
         wx.Frame.__init__(self, parent=parent, title=title, size=size)
         
+        self.Auth()
+        
         self.Bind(wx.EVT_CLOSE, self.OnClose)
         
         framePanel = wx.Panel(self)
@@ -611,6 +614,30 @@ class MainWindow(wx.Frame):
         dlg.Destroy()
         if result == wx.ID_YES:
             self.Destroy()
+    
+    def Auth(self):
+        """Authenticate with a simple password dialog"""
+        secret = hashlib.sha224('thepassword').hexdigest()  # Hash the secret password
+        attempts = 1
+        maxattempts = 3
+        
+        dlg = wx.TextEntryDialog(self, message="Enter password", caption="Auth", style=wx.OK|wx.PASSWORD)
+        dlg.ShowModal()
+        password = hashlib.sha224(dlg.GetValue()).hexdigest()
+        
+        while not password == secret and attempts < maxattempts:
+            attempts += 1
+            dlg.SetValue("")
+            dlg.ShowModal()
+            password = hashlib.sha224(dlg.GetValue()).hexdigest()
+        
+        if attempts > maxattempts-1:
+            wx.MessageDialog(self,
+                             "Max number of password attempts ({}) has been reached".format(maxattempts),
+                             style=wx.OK).ShowModal()
+            sys.exit(0)
+        
+        dlg.Destroy()
 
 
 # Used by node emulation buttons to send messages over serial
