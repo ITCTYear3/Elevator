@@ -3,6 +3,7 @@
 #include <mc9s12c32.h>
 #include "dist.h"
 #include "timer.h"  // usleep()
+#include "mcutilib.h"
 
 #define TRIG_PIN    PTT_PTT6    // Using PT6 gpio pin for trigger
 

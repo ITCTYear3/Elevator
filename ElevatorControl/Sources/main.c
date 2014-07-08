@@ -126,13 +126,12 @@ void controller() {
     byte cycle_count = 0;
     word car_height, distance;
     byte cur_floor, last_floor = 0;
-    char buf[64];
     //byte b;
     
     dist_init();
     
     for(;;) {  
-    	delay_ms(100);
+        delay_ms(100);
         distance = dist_read()/2;	// div2 is a temporary kludge	   
         last_floor = cur_floor;
         if ( distance > (7*5*CM_PER_FLOOR) ) {
@@ -144,7 +143,7 @@ void controller() {
             cur_floor = 1 + ((car_height / 10) / CM_PER_FLOOR);
             led7_write(led7_table[cur_floor]);
             if ( cur_floor != last_floor ) {
-            	update_floor(cur_floor);
+                update_floor(cur_floor);
             }
         }
         
@@ -158,18 +157,10 @@ void controller() {
         if ( update_lcd ) {
             update_lcd = 0;
             
-            if ( cur_floor == 0 ) {
-                //lcd_goto(0x00);
-                //lcd_puts("No car   ");  
+            if ( cur_floor == 0 ) { 
                 LCDclear();
                 LCDputs("No car");
             } else {
-                //itoa(car_height, 10, 3, "", buf);   
-                //lcd_goto(0x00);
-                //lcd_puts(buf);
-                //lcd_puts("mm/F"); 
-                //itoa(cur_floor, 10, 2, "", buf);   
-                //lcd_puts(buf+1);
                 LCDclear();
                 LCDprintf("%dmm/F%d", car_height, cur_floor);
             }
@@ -346,7 +337,7 @@ void car(void) {
                 goto car_cmd_error;
         }
         
-
+        
         // Turn off LED when car arrives at requested floor
         if ( rxmessage[0] == CMD_LOCATION ) {           
           if( rxmessage[1] == FLOOR1 ) {

@@ -30,7 +30,7 @@ static byte volatile rxdata_received_flag = 0;
 /* Only call this once during startup! */
 /* Currently configured to 1Mbit/s bitrate */
 void CANinit(word id) { 
-	lastRxFrame.id = id;
+    lastRxFrame.id = id;
     
     CANCTL1_CANE = 1;   // Enable the MSCAN module (write once)
     
@@ -132,25 +132,25 @@ byte CANsend(CANframe *frame) {
 
 /* Fill a byte array with payload data */
 void CANget(byte *data) {
-    byte i;    
-    if ( rxdata_available_flag ) { 	     
-	    DisableInterrupts;
-	    for(i=0; i<PAYLOAD_SIZE; i++) {
-	        *(data + i) = rxbuffer[i];
-	    }
-	    rxdata_available_flag = 0;
-	    EnableInterrupts;
-	    return;
-	} 	
-	if ( putdata_available_flag ) { 	     
-	    DisableInterrupts;
-	    for(i=0; i<PAYLOAD_SIZE; i++) {
-	        *(data + i) = putbuffer[i];
-	    }
-	    putdata_available_flag = 0;
-	    EnableInterrupts;
-	    return;
-	}  
+    byte i;
+    if ( rxdata_available_flag ) { 
+        DisableInterrupts;
+        for(i=0; i<PAYLOAD_SIZE; i++) {
+            *(data + i) = rxbuffer[i];
+        }
+        rxdata_available_flag = 0;
+        EnableInterrupts;
+        return;
+    }
+    if ( putdata_available_flag ) {
+        DisableInterrupts;
+        for(i=0; i<PAYLOAD_SIZE; i++) {
+            *(data + i) = putbuffer[i];
+        }
+        putdata_available_flag = 0;
+        EnableInterrupts;
+        return;
+    }
 }
 
 /* Return the data available flag */
@@ -169,27 +169,27 @@ void CANput(byte *data) {
     putdata_available_flag = 1;
     EnableInterrupts;
 }
-				
+
 /* Return the data sent flag */
 byte data_sent() {
-	return txdata_sent_flag;
+    return txdata_sent_flag;
 }
-		  
+
 /* Return the last frame that was successfully transmitted */
 CANframe *last_txframe() {
-	txdata_sent_flag = 0;	 // "Fast flag clear" 
-	return &lastTxFrame;
+    txdata_sent_flag = 0;   // "Fast flag clear" 
+    return &lastTxFrame;
 }
 
 /* Return the data sent flag */
 byte data_received() {
-	return rxdata_received_flag;
+    return rxdata_received_flag;
 }
-		  
+
 /* Return the last frame that was successfully received */
 CANframe *last_rxframe() {
-	rxdata_received_flag = 0;	 // "Fast flag clear" 
-	return &lastRxFrame;
+    rxdata_received_flag = 0;   // "Fast flag clear" 
+    return &lastRxFrame;
 }
 
 
@@ -200,19 +200,17 @@ void CANreceiveISR(void) {
     byte length, i;
     word timestamp;
         
-    length = CANRXDLR_DLC;  // Length is 4 bits, max value of 8		 
-    lastRxFrame.length = CANRXDLR_DLC;
+    length = CANRXDLR_DLC;  // Length is 4 bits, max value of 8 
+    lastRxFrame.length = length;
     
     // Copy out payload data (data segment registers memory mapped in sequential order)
     for(i=0; i<length; i++) {
-        rxbuffer[i] = *(&CANRXDSR0 + i);
-        lastRxFrame.payload[i] = *(&CANRXDSR0 + i);
+        rxbuffer[i] = lastRxFrame.payload[i] = *(&CANRXDSR0 + i);
     }
-    lastRxFrame.length = length;
     
     timestamp = (CANTXTSRH << 8) | CANTXTSRL;   // Timestamp not used at the moment
     
-    rxdata_available_flag = 1;  
+    rxdata_available_flag = 1;
     rxdata_received_flag = 1;
     CANRFLG = CANRFLG_RXF_MASK; // Clear RXF flag to release rx buffer
 }

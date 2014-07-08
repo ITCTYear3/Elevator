@@ -2,8 +2,8 @@
  * Serial/CANbus link 
  */
 
-#include <mc9s12c32.h> 
-#include "serialcan.h"  
+#include <mc9s12c32.h>
+#include "serialcan.h"
 #include "mscan.h"
 #include "sci.h"
 
@@ -24,15 +24,16 @@ static CANframe framebuf;           // Rx frame buffer for partial frames
 static byte state = RX_STATE_IDH;   // State machine variable
 static byte length;                 // Total number of payload bytes in the current frame
 
+#pragma MESSAGE DISABLE C1420   // Function call result ignored warning disable (for sci_readByte)
 /*
  * Reads a CAN frame from the PC monitor via serial
  * Returns 0 if a complete frame has been received, 1 if a partial frame has been received, and -1 if idle
  * Non-blocking: partial frames are buffered so the user's frame is unmodified until a full frame is ready, 
  * and persistent between calls so data will not be lost.
  */
-byte readSerialCANframe(CANframe *frame) {
+char readSerialCANframe(CANframe *frame) {
     byte b;
-    byte retCode = ( state == RX_STATE_IDH ? RX_IDLE : RX_PARTIAL );    // What to return if no bytes are available
+    char retCode = ( state == RX_STATE_IDH ? RX_IDLE : RX_PARTIAL );    // What to return if no bytes are available
     while ( sci_bytesAvailable() ) {
         retCode = RX_PARTIAL;
         sci_readByte(&b);
