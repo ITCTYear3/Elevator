@@ -10,10 +10,10 @@ static byte volatile rxdata_available_flag = 0;
 static byte volatile putbuffer[PAYLOAD_SIZE] = {0}; // Array filled by user locally
 static byte volatile putdata_available_flag = 0;
 
-static CANframe volatile lastTxFrame;               // The last successful outgoing frame
-static byte volatile txdata_sent_flag = 0;
+static CANframe lastTxFrame;            // The last successful outgoing frame
+static byte txdata_sent_flag = 0;
 
-static CANframe volatile lastRxFrame;               // The last successful incoming frame
+static CANframe volatile lastRxFrame;   // The last successful incoming frame
 static byte volatile rxdata_received_flag = 0;
 
 
@@ -199,7 +199,7 @@ interrupt VectorNumber_Vcanrx
 void CANreceiveISR(void) {
     byte length, i;
     word timestamp;
-        
+    
     length = CANRXDLR_DLC;  // Length is 4 bits, max value of 8 
     lastRxFrame.length = length;
     

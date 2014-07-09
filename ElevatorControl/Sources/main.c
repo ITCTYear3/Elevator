@@ -26,8 +26,8 @@
 #define CM_PER_FLOOR 15
 
 // Set local node ID (unique to each node)
-//#define MSCAN_NODE_ID   MSCAN_CTL_ID
-#define MSCAN_NODE_ID   MSCAN_CAR_ID
+#define MSCAN_NODE_ID   MSCAN_CTL_ID
+//#define MSCAN_NODE_ID   MSCAN_CAR_ID
 //#define MSCAN_NODE_ID   MSCAN_FL1_ID
 //#define MSCAN_NODE_ID   MSCAN_FL2_ID
 //#define MSCAN_NODE_ID   MSCAN_FL3_ID
@@ -52,6 +52,10 @@
     #elif MSCAN_NODE_ID == MSCAN_FL3_ID
         #define RUN()   callbox(FLOOR3);
     #endif
+
+#else
+
+    #error "One of the node IDs must be selected!"
 
 #endif
 
@@ -126,7 +130,7 @@ void controller() {
     byte cycle_count = 0;
     word car_height, distance;
     byte cur_floor, last_floor = 0;
-    //byte b;
+    //byte b;   // used for debug manual frame sending testing
     
     dist_init();
     

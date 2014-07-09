@@ -119,7 +119,7 @@ void CANget(byte *data);
 byte data_available(void);
 void CANput(byte *data);
 byte data_sent(void);
-CANframe *last_txframe(void);	  
+CANframe *last_txframe(void);
 byte data_received(void);
 CANframe *last_rxframe(void);
 
