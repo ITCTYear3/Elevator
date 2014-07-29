@@ -20,19 +20,19 @@
                                 // Load DAC register B from input register B; DAC output B updated
 #define DAC_LOAD_BA     0xA0    // Load input register B and DAC register B from shift register; DAC output B updated
                                 // Load DAC register A from input register A; DAC output A updated
-#define DAC_STANDBY     0xC0    // MAX5513/MAX5515 enter standby; MAX5512/MAX5514 enter shutdown
+#define DAC_STANDBY     0xC0    // MAX5533/MAX5535 enter standby; MAX5532/MAX5534 enter shutdown
 #define DAC_NORMAL      0xD0    // Enter normal operation; DAC outputs reflect existing content in DAC registers
 #define DAC_SHUTDOWN    0xE0    // Enter shutdown; DAC outputs set to high impedance
 #define DAC_LOAD_ALL    0xF0    // Load input registers A and B and DAC registers A and B from shift register; DAC outputs A and B updated
 
-// Output reference voltages (MAX5513/MAX5515)
+// Output reference voltages (MAX5533/MAX5535)
 // Used as data bits in conjunction with control bits 0xC0, 0xD0 and 0xE0
 #define DAC_VREF1       0x00    // 1.214V
 #define DAC_VREF2       0x40    // 1.940V
 #define DAC_VREF3       0x80    // 2.425V
 #define DAC_VREF4       0xC0    // 3.885V
 
-#define DAC_VREF        DAC_VREF3   // Currently selected output reference voltage
+#define DAC_VREF        DAC_VREF1   // Currently selected output reference voltage
 
 
 void DACinit(void);

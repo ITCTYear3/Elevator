@@ -63,6 +63,7 @@ void DACupdate(unsigned int data) {
 
 
 /* Send DAC command */
+/* NOTE: Only the 12 least significant bits will be used as data! */
 void DACcmd(unsigned char cmd, unsigned int data) {
     char high_byte, low_byte;
     

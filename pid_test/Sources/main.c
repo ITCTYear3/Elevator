@@ -4,8 +4,8 @@
 
 #include <hidef.h>
 #include "derivative.h"
-#include "dac_max551x.h"    // 8-bit DAC
-//#include "dac_max553x.h"   // 12-bit DAC
+//#include "dac_max551x.h"    // 8-bit DAC
+#include "dac_max553x.h"   // 12-bit DAC
 #include "spi.h"
 #include "pid.h"
 
@@ -17,7 +17,8 @@
 //#define SQUARE
 
 void main(void) {
-    unsigned char a;
+    unsigned int a;
+    unsigned int const max_val = 4096;  // Max value for 12-bit number
     
     SPIinit();
     DACinit();
@@ -28,9 +29,10 @@ void main(void) {
     pid_setpoint(100);
     
     for(;;) {
-        //DACdata((unsigned char)pid_output());
+        //DACdata(pid_output() & 0x0FFF);
         
-        for(a=0; a<255; a++) {
+        
+        for(a=0; a<max_val; a++) {
 #ifdef SAWTOOTH
             DACdata(a);
 #else
@@ -39,7 +41,7 @@ void main(void) {
 #endif
 #endif
         }
-        for(a=255-1; a>0; a--) {
+        for(a=max_val-1; a>0; a--) {
 #ifdef SAWTOOTH
             DACdata(a);
 #else
@@ -48,5 +50,6 @@ void main(void) {
 #endif
 #endif
         }
+        
     }
 }

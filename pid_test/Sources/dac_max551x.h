@@ -34,7 +34,7 @@
 #define DAC_VREF3       0x80    // 2.425V
 #define DAC_VREF4       0xC0    // 3.885V
 
-#define DAC_VREF        DAC_VREF3   // Currently selected output reference voltage
+#define DAC_VREF        DAC_VREF1   // Currently selected output reference voltage
 
 
 void DACinit(void);
