@@ -7,6 +7,8 @@
 #include <mc9s12c32.h>
 #include "pid.h"
 
+static pid_state volatile pid;  // PID state for use by controller ISR
+
 
 /* Initialize PID controller with gains and integral term limit */
 /* NOTE: Must multiply all three gains by PID_SCALING_FACTOR when initializing */
@@ -56,7 +58,7 @@ void pid_reset_integrator(void) {
 /* PID controller interrupt */
 interrupt VectorNumber_Vrti
 void pid_ISR(void) {
-    long err;
+    long err, out;
     long p_term, i_term, d_term;
     
     err = pid.setpoint - pid.feedback;
@@ -77,11 +79,13 @@ void pid_ISR(void) {
     d_term = pid.Kd * ( err - pid.prev_err );
     
     // Compute final output value and bind to saturation limits
-    pid.output = ( p_term + i_term + d_term ) / PID_SCALING_FACTOR;
-    if( pid.output > pid.out_limit_max ) {
+    out = ( p_term + i_term + d_term ) / PID_SCALING_FACTOR;
+    if( out > pid.out_limit_max ) {
         pid.output = pid.out_limit_max;
-    } else if( pid.output < pid.out_limit_min ) {
+    } else if( out < pid.out_limit_min ) {
         pid.output = pid.out_limit_min;
+    } else {
+        pid.output = (int)out;
     }
     
     pid.prev_err = err;   // Save error term for next iteration

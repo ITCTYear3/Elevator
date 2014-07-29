@@ -31,15 +31,15 @@ typedef struct {
     int  Kp;            // Proportional gain
     int  Ki;            // Integral gain
     int  Kd;            // Derivative gain
-    int  sp_limit_max, sp_limit_min;    // Setpoint saturation limits
-    int  out_limit_max, out_limit_min;  // Output value saturation limits
+    int  sp_limit_max;  // Setpoint saturation limits
+    int  sp_limit_min;
+    int  out_limit_max; // Output value saturation limits
+    int  out_limit_min;
     long int_limit;     // Integral error saturation limits (-limit to +limit)
     long prev_err;      // Previous error value
     long int_err;       // Integral error value
     int  output;        // Controller output value
 } pid_state;
-
-static pid_state volatile pid;  // PID state for use by controller ISR
 
 
 void pid_init(int Kp, int Ki, int Kd, long limit);
