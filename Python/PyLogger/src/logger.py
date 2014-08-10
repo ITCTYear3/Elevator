@@ -29,6 +29,7 @@ from wx.lib.pubsub import pub
 known_hosts = {
     "A3146-08.conestogac.on.ca" : (31000, "A3146-04.conestogac.on.ca"),
     "A3146-04.conestogac.on.ca" : (31001, "A3146-08.conestogac.on.ca"),
+    "A3146-06.conestogac.on.ca" : (31002, "A3146-06.conestogac.on.ca"),
     "Chris-PC" : (31000, "Chris-PC"),
     "localhost" : (30999, "localhost")
 }
