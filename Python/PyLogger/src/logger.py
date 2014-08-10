@@ -163,7 +163,7 @@ class SerialClient(threading.Thread):
             payload = payload[1:]
         
     def reader_sm(self):
-        """Poll serial port for incomming data and
+        """Poll serial port for incoming data and
            parse it to determine if it is a frame or a plain string"""
         state = 'idh'
         frame = []
