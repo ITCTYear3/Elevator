@@ -10,13 +10,14 @@
 #include "protocol.h"   // CAN node IDs and payload data IDs 
 #include "timer.h"      // msleep()
 #include "mscan.h"
+#include "serialcan.h"
+#include "sci.h"
+#include "dist.h"
+#include "pid.h"
 #include "lcd.h"
 #include "lcdspi.h"
-#include "dist.h"
 #include "led7.h"
-#include "sci.h"
 #include "mcutilib.h"
-#include "serialcan.h"
 
 #define LED1    PTS_PTS2
 #define LED2    PTS_PTS3
@@ -59,7 +60,8 @@
 
 #endif
 
-#pragma MESSAGE DISABLE C1420
+
+#pragma MESSAGE DISABLE C1420   // "Result of function-call is ignored" warning message disable for sci_sendBytes()
 void main(void) {
     
     //byte b;
@@ -72,7 +74,7 @@ void main(void) {
     
     // Clear all MSCAN receiver flags (by setting bits)
     CANRFLG = (CANRFLG_RXF_MASK | CANRFLG_OVRIF_MASK | CANRFLG_CSCIF_MASK | CANRFLG_WUPIF_MASK);
-   
+    
     sci_init();
     
     msleep(16); // wait 16ms before init LCD
@@ -85,7 +87,7 @@ void main(void) {
     
     EnableInterrupts;
     
-    sci_sendBytes((byte*)"Ready", 6);
+    sci_sendBytes((byte*)"Ready", 6);   // Send ready message indicator via serial
     
     for(;;) {
         /*
@@ -101,7 +103,7 @@ void main(void) {
  * Transmits the floor that the current elevator car is on
  * to the internal panel and to each call box
  */
-#pragma MESSAGE DISABLE C1420   // Result of function call warning (for CANsend() )
+#pragma MESSAGE DISABLE C1420   // "Result of function-call is ignored" warning message disable for CANsend()
 void update_floor(byte floor) {
     CANframe txframe;
     
