@@ -117,7 +117,7 @@ cmds = {
 
 
 class SerialClient(threading.Thread):
-    """Busy wait watching serial port for new incomming data and pass data to subscriber"""
+    """Busy wait watching serial port for new incoming data and pass data to subscriber"""
     def __init__(self, port='COM1', baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE):
         threading.Thread.__init__(self)
         
