@@ -1,24 +1,10 @@
-/* 
- * Serial/CANbus link 
- */
+/* Serial <--> CANbus link */
 
 #include <mc9s12c32.h>
 #include "serialcan.h"
+#include "utils.h"
 #include "mscan.h"
 #include "sci.h"
-
-// read() return values
-#define RX_COMPLETE 0
-#define RX_PARTIAL  1
-#define RX_IDLE    -1
-
-// read() state machine states
-#define RX_STATE_IDH        0
-#define RX_STATE_IDL        1
-#define RX_STATE_PRIORITY   2
-#define RX_STATE_LENGTH     3
-#define RX_STATE_PAYLOAD    4
-#define RX_STATE_DONE       5
 
 static CANframe framebuf;           // Rx frame buffer for partial frames
 static byte state = RX_STATE_IDH;   // State machine variable
@@ -27,7 +13,7 @@ static byte length;                 // Total number of payload bytes in the curr
 #pragma MESSAGE DISABLE C1420   // Function call result ignored warning disable (for sci_readByte)
 /*
  * Reads a CAN frame from the PC monitor via serial
- * Returns 0 if a complete frame has been received, 1 if a partial frame has been received, and -1 if idle
+ * Returns RX_COMPLETE if a complete frame has been received, RX_PARTIAL if a partial frame has been received, or RX_IDLE if waiting for a frame to arrive
  * Non-blocking: partial frames are buffered so the user's frame is unmodified until a full frame is ready, 
  * and persistent between calls so data will not be lost.
  */
@@ -36,7 +22,7 @@ char readSerialCANframe(CANframe *frame) {
     char retCode = ( state == RX_STATE_IDH ? RX_IDLE : RX_PARTIAL );    // What to return if no bytes are available
     while ( sci_bytesAvailable() ) {
         retCode = RX_PARTIAL;
-        sci_readByte(&b);
+        sci_readByte(&b);   // Read in one byte at a time per state loop
         switch ( state ) {
             case RX_STATE_IDH:
                 FORCE_BITS(framebuf.id, 0xFF00, ((word)b)<<8);
@@ -52,7 +38,7 @@ char readSerialCANframe(CANframe *frame) {
                 break;
             case RX_STATE_LENGTH:  
                 length = b;
-                framebuf.length = 0;    // note: stores the number of received bytes, not the expected total
+                framebuf.length = 0;    // Note: stores the number of received bytes, not the expected total
                 state = RX_STATE_PAYLOAD;
                 break;
             case RX_STATE_PAYLOAD: 
@@ -60,8 +46,8 @@ char readSerialCANframe(CANframe *frame) {
                 // Got a full frame?
                 if ( framebuf.length == length ) {
                     state = RX_STATE_IDH;
-                    *frame = framebuf;  // copy to user
-                    return RX_COMPLETE; // return immediately and ignore any remaining bytes until next time
+                    *frame = framebuf;  // Copy to user
+                    return RX_COMPLETE; // Return immediately and ignore any remaining bytes until next time
                 }
                 break;
             default:
