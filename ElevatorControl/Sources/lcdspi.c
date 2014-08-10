@@ -66,7 +66,7 @@ void lcd_putc(byte b) {
                 lcd_state = LCD_STATE_IDLE;
                 break;
         }
-        spi_write(lcd_reg);
+        SPIputc(lcd_reg);
     //  delay_ms(15);
     }
 }
@@ -100,14 +100,14 @@ void lcd_puts(char *s) {
     char *c;
     for ( c = s; *c != '\0'; ++c ) {
         lcd_putc(*c);
-    } 
+    }
 #ifdef LCD_SERIAL
-	while ( ! sci_sendBytes((byte*)s, strlen((const char *)s)+1) );
+    while ( ! sci_sendBytes((byte*)s, strlen((const char *)s)+1) );
 #endif
 }
 
 void lcd_init() {
-    if(SPICR1_SPE != 1) spi_init();
+    if(SPICR1_SPE != 1) SPIinit();
     
     lcd_rs = LCD_RS_INST;
     lcd_mode = LCD_BYTE_MODE;

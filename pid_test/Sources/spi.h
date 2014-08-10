@@ -1,7 +1,6 @@
 /*
  * spi.h
  * SPI module macros and functions
- * Compatible with with MAX5512/MAX5513 8-bit DAC
  */
 #ifndef _SPI_H
 #define _SPI_H

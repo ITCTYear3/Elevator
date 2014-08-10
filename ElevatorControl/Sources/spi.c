@@ -1,46 +1,55 @@
-/* SPI module functions */
-/* Only setup for sending, not receiving */
+/*
+ * spi.c
+ * SPI module macros and functions
+ * Compatible with with MAX5512/MAX5513 8-bit DAC
+ */
 
 #include <mc9s12c32.h>
 #include "spi.h"
 
-void spi_init() {
-    
-    // Disable interrupts
-    SPICR1_SPIE = 0;
-    SPICR1_SPTIE = 0;
+//#pragma MESSAGE DISABLE C4301   // "Inline expansion done for function call" warning message disable (compiler option)
+
+
+/* Initialize SPI module */
+void SPIinit(void) {
     
     SPICR1_MSTR = 1;    // Enable master mode
     
     // Set clock polarity & phase (i.e. SPI mode 0 .. 3)
-    SPICR1_CPOL = 0;
-    SPICR1_CPHA = 0;
+    SPICR1_CPOL = 0;    // Active-high SCK
+    SPICR1_CPHA = 0;    // Sampling on odd edges of SCK
     
-    SPICR1_SSOE = 1;    // Enable automatic SS operation
     SPICR1_LSBFE = 0;   // Transmit MSB first
-    SPICR2_MODFEN = 1;  // Enable mode fault detection (required for SS operation)
+    SPICR1_SSOE = 1;    // Enable automatic SS operation
+    SPICR2_MODFEN = 1;  // Enable slave select with master mode
     SPICR2_BIDIROE = 0; // Disable bidirectional output buffer
     SPICR2_SPISWAI = 0; // SPI is not affected by WAIT
     SPICR2_SPC0 = 0;    // Disable bidirectional I/O
     
-    // Baud rate 
-    // See datasheet pg. 419
+    SPIBR = BAUD_1MHZ;  // Set baud rate
     
-    // BusClock = 8MHz
-    // Divisor = (SPPR+1) * 2^(SPR+1)
-    // BaudRate = BusClock / Divisor
-    // Set SPPR = 0
-    // BaudRate = 8MHz / 2^(SPR+1)
-    // Set SPR = 0
-    // BaudRate = 8 MHz / 2^1
-    // BaudRate = 4 MHz
-    SPIBR_SPPR = 0;
-    SPIBR_SPR = 0;
-    
-    SPICR1_SPE = 1; // Enable SPI module
+    SPICR1_SPE = 1;     // Enable SPI module
 }
 
-void spi_write(byte data) {
-    while(!SPISR_SPTEF);
-    SPIDR = data;
+//#pragma MESSAGE DISABLE C4002   // "Result not used" warning message disable for returning SPIDR value
+/* Read and write char on SPI */
+unsigned char SPIgetputc(char c) {
+    while(!SPISR_SPTEF); // Wait for data register to become empty
+    SPIDR = c;
+    
+    /* Byte shifted out and new byte shifted in */
+    
+    while(!SPISR_SPIF); // Wait until byte shifted in
+    return SPIDR;
+}
+
+#pragma MESSAGE DISABLE C1420   // "Result of function-call is ignored" warning message disable for SPIgetputc()
+/* Write char to SPI */
+void SPIputc(char c) {
+    SPIgetputc(c);
+}
+
+/* Read char from SPI */
+unsigned char SPIgetc(void) {
+    return SPIgetputc(0x00);    // Write a dummy value while reading incoming data byte
 }

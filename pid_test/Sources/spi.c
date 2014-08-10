@@ -12,12 +12,22 @@
 
 /* Initialize SPI module */
 void SPIinit(void) {
-    SPIBR = BAUD_1MHZ;  // Set baud rate
-    SPICR2_MODFEN = 1;  // Enable slave select with master mode
-    SPICR1_CPHA = 1;    // Change clock phase
     
-    // master mode, slave select is output in master mode, active high clock polarity, MSB first
-    SPICR1 = ( SPICR1_MSTR_MASK | SPICR1_SSOE_MASK | SPICR1_CPOL_MASK & ~SPICR1_CPOL_MASK | SPICR1_LSBFE_MASK & ~SPICR1_LSBFE_MASK );
+    SPICR1_MSTR = 1;    // Enable master mode
+    
+    // Set clock polarity & phase (i.e. SPI mode 0 .. 3)
+    SPICR1_CPOL = 0;    // Active-high SCK
+    SPICR1_CPHA = 0;    // Sampling on odd edges of SCK
+    
+    SPICR1_LSBFE = 0;   // Transmit MSB first
+    SPICR1_SSOE = 1;    // Enable automatic SS operation
+    SPICR2_MODFEN = 1;  // Enable slave select with master mode
+    SPICR2_BIDIROE = 0; // Disable bidirectional output buffer
+    SPICR2_SPISWAI = 0; // SPI is not affected by WAIT
+    SPICR2_SPC0 = 0;    // Disable bidirectional I/O
+    
+    SPIBR = BAUD_1MHZ;  // Set baud rate
+    
     SPICR1_SPE = 1;     // Enable SPI module
 }
 
