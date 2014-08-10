@@ -250,6 +250,8 @@ class SerialClient(threading.Thread):
                 if True:
                     msg = "Frame\n------\nID: {}\nPriority: {}\nLength: {}\nPayload: {} \"{}\"\n\n".format(id, priority, length, payload, payload_decode)
                     wx.CallAfter(pub.sendMessage, 'update', data=msg)
+                    # TODO: fix this to only update text when a message is received from controller telling which floor it is currently at
+                    wx.CallAfter(pub.sendMessage, 'updateFloor', data=payload_decode)   # Send update to node emu panel to show current floor
         
         # Close serial connection after breaking out of the running loop
         try:
@@ -259,7 +261,7 @@ class SerialClient(threading.Thread):
             sys.exit(1)
     
     def reader(self):
-        """loop forever and watch for messages on serial"""
+        """loop forever and watch for messages on serial - (Old method, no longer used)"""
         while True:
             try:
                 data = self.ser.read(1)              # read one, blocking
@@ -334,11 +336,22 @@ class NodeEmuPanel(wx.Panel):
     def __init__(self, parent, style):
         wx.Panel.__init__(self, parent=parent, style=style)
         
+        pub.subscribe(self.UpdateFloor, 'updateFloor')
+        
         self.InitUI()
     
     def InitUI(self):
         
         self.numFloors = 3
+        
+        
+        #---- Current floor text
+        self.st_curfloor = wx.StaticText(self, label="Current floor: None", style=wx.BORDER_SIMPLE)
+        curfloorSizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.AddLinearSpacer(curfloorSizer, 5)
+        curfloorSizer.Add(self.st_curfloor, 1)
+        self.AddLinearSpacer(curfloorSizer, 5)
+        
         
         #---- Node sizers
         nodeSizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -358,9 +371,11 @@ class NodeEmuPanel(wx.Panel):
         #---- Main vertical sizer
         mainSizer = wx.BoxSizer(wx.VERTICAL)
         self.AddLinearSpacer(mainSizer, 5)
-        mainSizer.Add(nodeSizer)
+        mainSizer.Add(curfloorSizer, flag=wx.EXPAND)
         self.AddLinearSpacer(mainSizer, 5)
-        mainSizer.Add(carSizer)
+        mainSizer.Add(nodeSizer, flag=wx.ALIGN_CENTER)
+        self.AddLinearSpacer(mainSizer, 5)
+        mainSizer.Add(carSizer, flag=wx.ALIGN_CENTER)
         self.AddLinearSpacer(mainSizer, 5)
         
         self.SetSizer(mainSizer)    # Associate sizer to wx.Panel control
@@ -431,6 +446,10 @@ class NodeEmuPanel(wx.Panel):
             serialObj.SendFrame(id=id, payload=payload)
         else:
             button.SetBackgroundColour(wx.NullColour)
+    
+    def UpdateFloor(self, data):
+        """Update current floor text"""
+        self.st_curfloor.SetLabel("Current floor: {}".format(data))
 
 
 class LoggingPanel(wx.Panel):
@@ -586,14 +605,14 @@ class MainWindow(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.OnClose)
         
         framePanel = wx.Panel(self)
-        framePanel.BackgroundColour = (235, 230, 220)   # Beige alert!
+        framePanel.BackgroundColour = (235, 230, 220)   # Your neutralness, it's a beige alert!
         
         logPanel = LoggingPanel(parent=framePanel, style=wx.BORDER_SUNKEN)
         nodeEmuPanel = NodeEmuPanel(parent=framePanel, style=wx.BORDER_SUNKEN)
         
         mainSizer = wx.BoxSizer(wx.HORIZONTAL)
         mainSizer.Add(logPanel, proportion=1, flag=wx.EXPAND)
-        mainSizer.Add(nodeEmuPanel, proportion=1, flag=wx.EXPAND)
+        mainSizer.Add(nodeEmuPanel, proportion=0.8, flag=wx.EXPAND)
         mainSizer.Layout()
         
         framePanel.SetSizer(mainSizer)
