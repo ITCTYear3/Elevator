@@ -8,6 +8,8 @@
 
 #include <mc9s12c32.h>
 
+#define MAX_12BIT   4096
+
 // Slave select on Port M 3
 #define SS_LO           (PTM_PTM3 = 0)
 #define SS_HI           (PTM_PTM3 = 1)

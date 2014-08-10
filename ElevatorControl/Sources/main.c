@@ -14,6 +14,7 @@
 #include "sci.h"
 #include "dist.h"
 #include "pid.h"
+#include "mctrl.h"
 #include "lcd.h"
 #include "lcdspi.h"
 #include "led7.h"
@@ -130,15 +131,16 @@ void controller() {
     
     byte update_lcd = 1;
     byte cycle_count = 0;
-    word car_height, distance;
+    word car_height, distance;  // car height in cm, distance measurement in mm
     byte cur_floor, last_floor = 0;
     //byte b;   // used for debug manual frame sending testing
     
     dist_init();
+    mctrl_init();   // Initialize servo motor controller
     
-    for(;;) {  
+    for(;;) {
         delay_ms(100);
-        distance = dist_read()/2;	// div2 is a temporary kludge	   
+        distance = dist_read()/2;   // div2 is a temporary kludge
         last_floor = cur_floor;
         if ( distance > (7*5*CM_PER_FLOOR) ) {
             car_height = 999;
@@ -151,7 +153,12 @@ void controller() {
             if ( cur_floor != last_floor ) {
                 update_floor(cur_floor);
             }
+            
+            // Update PID controller feedback value
+            pid_feedback((car_height/10) * 100);    // scale value up to something we can work with on the bench
         }
+        
+        mctrl_update();
         
         cycle_count++;
         

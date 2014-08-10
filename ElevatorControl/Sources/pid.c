@@ -6,13 +6,15 @@
 
 #include <mc9s12c32.h>
 #include "pid.h"
+#include "dac_max553x.h"
 
-static pid_state volatile pid;  // PID state for use by controller ISR
+//static pid_state volatile pid;  // PID state for use by controller ISR
+pid_state volatile pid;
 
 
 /* Initialize PID controller with gains and integral term limit */
 /* NOTE: Must multiply all three gains by PID_SCALING_FACTOR when initializing */
-void pid_init(int Kp, int Ki, int Kd, long limit) {
+void pid_init(int Kp, int Ki, int Kd, long limit, int factor) {
     
     // Setup gains and limits
     pid.Kp = Kp;
@@ -20,9 +22,10 @@ void pid_init(int Kp, int Ki, int Kd, long limit) {
     pid.Kd = Kd;
     pid.sp_limit_max = 1500;
     pid.sp_limit_min = 50;
-    pid.out_limit_max = pid.sp_limit_max;
-    pid.out_limit_min = pid.sp_limit_min;
+    pid.out_limit_max = MAX_12BIT/2;
+    pid.out_limit_min = -MAX_12BIT/2;
     pid.int_limit = limit;
+    pid.conv_factor = factor * 100;
     
     // Reset error values
     pid.prev_err = 0;
@@ -47,6 +50,11 @@ void pid_setpoint(int setpoint) {
 /* Return the controller output value */
 int pid_output(void) {
     return pid.output;
+}
+
+/* Set controller feedback value */
+void pid_feedback(int value) {
+    pid.feedback = value;
 }
 
 /* Reset integral error term of controller */
@@ -80,6 +88,7 @@ void pid_ISR(void) {
     
     // Compute final output value and bind to saturation limits
     out = ( p_term + i_term + d_term ) / PID_SCALING_FACTOR;
+    out *= pid.conv_factor / 100;   // Scale by conversion factor to convert to an analog voltage
     if( out > pid.out_limit_max ) {
         pid.output = pid.out_limit_max;
     } else if( out < pid.out_limit_min ) {

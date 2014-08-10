@@ -3,8 +3,8 @@
  * PID controller
  * Utilizes the RTI interrupt for regular periodic iterations
  */
-#ifndef PID_H
-#define PID_H
+#ifndef _PID_H
+#define _PID_H
 
 // RTI intervals
 // see page 263 of MC9S12 family datasheet for full table of RTI intervals (Table 9-7)
@@ -35,6 +35,7 @@ typedef struct {
     int  sp_limit_min;
     int  out_limit_max; // Output value saturation limits
     int  out_limit_min;
+    int  conv_factor;   // Controller output conversion factor
     long int_limit;     // Integral error saturation limits (-limit to +limit)
     long prev_err;      // Previous error value
     long int_err;       // Integral error value
@@ -42,9 +43,10 @@ typedef struct {
 } pid_state;
 
 
-void pid_init(int Kp, int Ki, int Kd, long limit);
+void pid_init(int Kp, int Ki, int Kd, long limit, int factor);
 void pid_setpoint(int setpoint);
 int pid_output(void);
+void pid_feedback(int value);
 void pid_reset_integrator(void);
 
 #endif // _PID_H

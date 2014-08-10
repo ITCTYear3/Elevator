@@ -1,4 +1,8 @@
-/* HC-SR04 Ultrasonic Sensor */
+/*
+ * HC-SR04 Ultrasonic Sensor
+ * Trigger pin: PT6
+ * Echo pin: PT7
+ */
 
 #include <mc9s12c32.h>
 #include "dist.h"
