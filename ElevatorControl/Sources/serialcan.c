@@ -17,9 +17,9 @@ static byte length;                 // Total number of payload bytes in the curr
  * Non-blocking: partial frames are buffered so the user's frame is unmodified until a full frame is ready, 
  * and persistent between calls so data will not be lost.
  */
-char readSerialCANframe(CANframe *frame) {
+byte readSerialCANframe(CANframe *frame) {
     byte b;
-    char retCode = ( state == RX_STATE_IDH ? RX_IDLE : RX_PARTIAL );    // What to return if no bytes are available
+    byte retCode = ( state == RX_STATE_IDH ? RX_IDLE : RX_PARTIAL );    // What to return if no bytes are available
     while ( sci_bytesAvailable() ) {
         retCode = RX_PARTIAL;
         sci_readByte(&b);   // Read in one byte at a time per state loop
@@ -77,7 +77,8 @@ void sendSerialCANframe(CANframe *frame) {
 
 /*
  * User-facing routine
- * Checks for new frames from PC and, and send PC any new bus frames   
+ * Checks for new frames from PC and sends PC any new CAN bus frames
+ * Will echo out any frames from PC that do not match the local node ID 
  * Should be called once per main loop iteration during normal operation
  */
 void runSerialCAN(word id) {
@@ -87,7 +88,7 @@ void runSerialCAN(word id) {
         if ( rxFrame.id == id ) {
             CANput(rxFrame.payload);
         } else {
-            CANsend(&rxFrame);
+            CANsend(&rxFrame);  // Echo frame from serial onto CAN bus if ID doesn't match
         }
     }
     // Check for a recently sent frame

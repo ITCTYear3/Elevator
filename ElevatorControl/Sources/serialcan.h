@@ -7,7 +7,7 @@
 // readSerialCANframe() return values
 #define RX_COMPLETE 0
 #define RX_PARTIAL  1
-#define RX_IDLE    -1
+#define RX_IDLE     2
 
 // readSerialCANframe() state machine states
 #define RX_STATE_IDH        0
@@ -17,7 +17,7 @@
 #define RX_STATE_PAYLOAD    4
 #define RX_STATE_DONE       5
 
-char readSerialCANframe(CANframe *frame);
+byte readSerialCANframe(CANframe *frame);
 static void sendSerialCANframe(CANframe *frame);
 void runSerialCAN(word id);
 
