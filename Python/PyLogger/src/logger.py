@@ -144,7 +144,7 @@ class SerialClient(threading.Thread):
     
     def run(self):
         self.reader_sm()
-        
+    
     def SendFrame(self, id, priority=1, payload=[]):
         """Write frame data to serial port"""
         idh = int(id/256) # upper byte
@@ -250,8 +250,9 @@ class SerialClient(threading.Thread):
                 if True:
                     msg = "Frame\n------\nID: {}\nPriority: {}\nLength: {}\nPayload: {} \"{}\"\n\n".format(id, priority, length, payload, payload_decode)
                     wx.CallAfter(pub.sendMessage, 'update', data=msg)
-                    # TODO: fix this to only update text when a message is received from controller telling which floor it is currently at
-                    wx.CallAfter(pub.sendMessage, 'updateFloor', data=payload_decode)   # Send update to node emu panel to show current floor
+                    if payload_decode.split()[0] == cmds[0][0]:
+                        wx.CallAfter(pub.sendMessage, 'updateFloor', data=payload_decode.split()[1])
+                        wx.CallAfter(pub.sendMessage, 'updateDirection', data=payload_decode.split()[2])   # Send update to node emu panel to show current floor
         
         # Close serial connection after breaking out of the running loop
         try:
@@ -337,6 +338,7 @@ class NodeEmuPanel(wx.Panel):
         wx.Panel.__init__(self, parent=parent, style=style)
         
         pub.subscribe(self.UpdateFloor, 'updateFloor')
+        pub.subscribe(self.UpdateDirection, 'updateDirection')
         
         self.InitUI()
     
@@ -345,12 +347,18 @@ class NodeEmuPanel(wx.Panel):
         self.numFloors = 3
         
         
-        #---- Current floor text
+        #---- Current floor and direction text
         self.st_curfloor = wx.StaticText(self, label="Current floor: None", style=wx.BORDER_SIMPLE)
         curfloorSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.AddLinearSpacer(curfloorSizer, 5)
         curfloorSizer.Add(self.st_curfloor, 1)
         self.AddLinearSpacer(curfloorSizer, 5)
+        
+        self.st_curdir = wx.StaticText(self, label="Current direction: None", style=wx.BORDER_SIMPLE)
+        curdirSizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.AddLinearSpacer(curdirSizer, 5)
+        curdirSizer.Add(self.st_curdir, 1)
+        self.AddLinearSpacer(curdirSizer, 5)
         
         
         #---- Node sizers
@@ -372,6 +380,8 @@ class NodeEmuPanel(wx.Panel):
         mainSizer = wx.BoxSizer(wx.VERTICAL)
         self.AddLinearSpacer(mainSizer, 5)
         mainSizer.Add(curfloorSizer, flag=wx.EXPAND)
+        self.AddLinearSpacer(mainSizer, 5)
+        mainSizer.Add(curdirSizer, flag=wx.EXPAND)
         self.AddLinearSpacer(mainSizer, 5)
         mainSizer.Add(nodeSizer, flag=wx.ALIGN_CENTER)
         self.AddLinearSpacer(mainSizer, 5)
@@ -450,6 +460,10 @@ class NodeEmuPanel(wx.Panel):
     def UpdateFloor(self, data):
         """Update current floor text"""
         self.st_curfloor.SetLabel("Current floor: {}".format(data))
+    
+    def UpdateDirection(self, data):
+        """Update current direction text"""
+        self.st_curdir.SetLabel("Current direction: {}".format(data))
 
 
 class LoggingPanel(wx.Panel):
