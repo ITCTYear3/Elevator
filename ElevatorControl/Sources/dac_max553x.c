@@ -56,6 +56,22 @@ void DACpreloadB(unsigned int data) {
     DACcmd(DAC_LOAD_B, data);
 }
 
+/*
+ * Load data into DAC input register A and update channel output
+ * Update channel B output with data currently in DAC register B
+ */
+void DACloadAshiftB(unsigned int data) {
+    DACcmd(DAC_LOAD_AB, data);
+}
+
+/*
+ * Load data into DAC input register B and update channel output
+ * Update channel A output with data currently in DAC register A
+ */
+void DACloadBshiftA(unsigned int data) {
+    DACcmd(DAC_LOAD_BA, data);
+}
+
 /* Update DAC channels A and B from DAC registers A and B */
 void DACupdate(unsigned int data) {
     DACcmd(DAC_LOAD_DAC_AB, data);

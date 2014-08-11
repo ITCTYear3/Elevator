@@ -45,6 +45,8 @@ void DACdata(unsigned int data);
 void DACpreload(unsigned int data);
 void DACpreloadA(unsigned int data);
 void DACpreloadB(unsigned int data);
+void DACloadAshiftB(unsigned int data);
+void DACloadBshiftA(unsigned int data);
 void DACupdate(unsigned int data);
 static void DACcmd(unsigned char cmd, unsigned int data);
 
