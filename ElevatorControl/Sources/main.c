@@ -19,21 +19,26 @@
 #include "lcdspi.h"
 #include "led7.h"
 #include "mcutilib.h"
-#include "usonic.h"
 
 #define LED1    PTS_PTS2
 #define LED2    PTS_PTS3
 #define SW1     !PTJ_PTJ6
 #define SW2     !PTJ_PTJ7
 
+
+//#define USE_LCD     // HD44780 32 character LCD display board
+#define USE_LCD2    // HD44780 32 character LCD display board connected via SPI (Chris' Axman)
+//#define USE_LED7    // 7-segment custom callbox display board attachment
+
 #define CM_PER_FLOOR 15
 
 // Set local node ID (unique to each node)
-//#define MSCAN_NODE_ID   MSCAN_CTL_ID
+#define MSCAN_NODE_ID   MSCAN_CTL_ID
 //#define MSCAN_NODE_ID   MSCAN_CAR_ID
-#define MSCAN_NODE_ID   MSCAN_FL1_ID
+//#define MSCAN_NODE_ID   MSCAN_FL1_ID
 //#define MSCAN_NODE_ID   MSCAN_FL2_ID
 //#define MSCAN_NODE_ID   MSCAN_FL3_ID
+
 
 #if MSCAN_NODE_ID == MSCAN_CTL_ID
 
@@ -79,13 +84,19 @@ void main(void) {
     
     sci_init();
     
+#ifdef USE_LCD
     msleep(16); // wait 16ms before init LCD
     LCDinit();  // initialize LCD, cursor should be visible with blink after
+#endif
     
+#ifdef USE_LCD2
+    lcd_init();
+#endif
+    
+#ifdef USE_LED7
     led7_init();
     led7_write(LED7_HBARS);
-    
-    lcd_init();
+#endif
     
     EnableInterrupts;
     
@@ -137,29 +148,33 @@ void controller() {
     //byte b;   // used for debug manual frame sending testing
     
     dist_init();
-    mctrl_init();   // Initialize servo motor controller
+    //mctrl_init();   // Initialize servo motor controller
     
     for(;;) {
-        delay_ms(100);
+        
         distance = dist_read()/2;   // div2 is a temporary kludge
         last_floor = cur_floor;
         if ( distance > (7*5*CM_PER_FLOOR) ) {
             car_height = 999;
             cur_floor = 0;
+#ifdef USE_LED7
             led7_write(led7_bars[1]);
+#endif
         } else {
             car_height = (10*distance)/4;
             cur_floor = 1 + ((car_height / 10) / CM_PER_FLOOR);
+#ifdef USE_LED7
             led7_write(led7_table[cur_floor]);
+#endif
             if ( cur_floor != last_floor ) {
                 update_floor(cur_floor);
             }
             
             // Update PID controller feedback value
-            pid_feedback((car_height/10) * 100);    // scale value up to something we can work with on the bench
+            //pid_feedback((car_height/10) * 100);    // scale value up to something we can work with on the bench
         }
         
-        mctrl_update();
+        //mctrl_update();
         
         cycle_count++;
         
@@ -171,6 +186,7 @@ void controller() {
         if ( update_lcd ) {
             update_lcd = 0;
             
+#ifdef USE_LCD
             if ( cur_floor == 0 ) { 
                 LCDclear();
                 LCDputs("No car");
@@ -178,6 +194,7 @@ void controller() {
                 LCDclear();
                 LCDprintf("%dmm/F%d", car_height, cur_floor);
             }
+#endif
         }
         
         // CAN bus <-> serial link
@@ -194,62 +211,79 @@ void controller() {
             CANget(rxmessage);
             
             switch(rxmessage[0]) {
-                case CMD_BUTTON_CALL:
-                    button_floor = rxmessage[1];
-                    button_direction = rxmessage[2];
-                    
-                    switch(button_floor) {
-                    case FLOOR1:
-                        button_floor_str = "1";
-                        break;
-                    case FLOOR2:
-                        button_floor_str = "2";
-                        break;
-                    case FLOOR3:
-                        button_floor_str = "3";
-                        break;
-                    default:
-                        break;
-                    }
-                    switch(button_direction) {
-                    case DIRECTION_UP:
-                        button_direction_str = "up  ";
-                        break;
-                    case DIRECTION_DOWN:
-                        button_direction_str = "down";
-                        break;
-                    case DIRECTION_STATIONARY:
-                        button_direction_str = "stat";
-                        break;
-                    default:
-                        break;
-                    }
-                    
-                    lcd_goto(0x10); // Start at second line
-                    lcd_puts("Floor");
-                    lcd_puts(button_floor_str);
-                    lcd_puts(" Dir ");
-                    lcd_puts(button_direction_str);
+            case CMD_BUTTON_CALL:
+                button_floor = rxmessage[1];
+                button_direction = rxmessage[2];
+                
+                switch(button_floor) {
+                case FLOOR1:
+                    button_floor_str = "1";
                     break;
-                case CMD_BUTTON_CAR:
-                    
+                case FLOOR2:
+                    button_floor_str = "2";
                     break;
-                case CMD_DISP_APPEND:
-                    
-                    break;
-                case CMD_DISTANCE:
-                    pid_feedback((rxmessage[1] << 8)|| rxmessage[2]);
-                    break;
-                case CMD_ERROR:
-                    
+                case FLOOR3:
+                    button_floor_str = "3";
                     break;
                 default:
-                    lcd_goto(0x10); // Start at second line
-                    lcd_puts("Unknown command");
                     break;
+                }
+                switch(button_direction) {
+                case DIRECTION_UP:
+                    button_direction_str = "up  ";
+                    break;
+                case DIRECTION_DOWN:
+                    button_direction_str = "down";
+                    break;
+                case DIRECTION_STATIONARY:
+                    button_direction_str = "stat";
+                    break;
+                default:
+                    break;
+                }
+                
+#ifdef USE_LCD
+                LCDhome();
+                LCDprintf("\nFloor%s Dir %s", button_floor_str, button_direction_str);
+#else
+#ifdef USE_LCD2
+                lcd_goto(0x10); // Start at second line
+                lcd_puts("Floor");
+                lcd_puts(button_floor_str);
+                lcd_puts(" Dir ");
+                lcd_puts(button_direction_str);
+#endif
+#endif
+                break;
+            case CMD_BUTTON_CAR:
+                
+                break;
+            case CMD_DISP_APPEND:
+                
+                break;
+            case CMD_DISTANCE:
+                distance = (rxmessage[1] << 8) | rxmessage[2];
+                pid_feedback(distance);
+                break;
+            case CMD_ERROR:
+                
+                break;
+            default:
+#ifdef USE_LCD
+                LCDclear();
+                LCDputs("\nUnknown command");
+#else
+#ifdef USE_LCD2
+                lcd_goto(0x10); // Start at second line
+                lcd_puts("Unknown command");
+#endif
+#endif
+                break;
             }
         }
-    }  
+        
+        delay_ms(100);
+    }
 }
 
 
@@ -277,8 +311,8 @@ void car(void) {
     
     if(SW1 && !sw1_pressed) {
         sw1_pressed = 1;
-        LED1 = 1;      
-            
+        LED1 = 1;
+        
         txframe.payload[1] = FLOOR1;          
         ret = CANsend(&txframe);
         if(ret) {
@@ -287,7 +321,7 @@ void car(void) {
     }
     if(SW2 && !sw2_pressed) {
         sw2_pressed = 1;
-        LED2 = 1;      
+        LED2 = 1;
         
         txframe.payload[1] = FLOOR2;         
         ret = CANsend(&txframe);
@@ -313,7 +347,6 @@ void car(void) {
     if(data_available()) {
         
         CANget(rxmessage);
-    
         
         switch(rxmessage[0]) {
             case CMD_LOCATION:
@@ -357,31 +390,33 @@ void car(void) {
         
         // Turn off LED when car arrives at requested floor
         if ( rxmessage[0] == CMD_LOCATION ) {           
-          if( rxmessage[1] == FLOOR1 ) {
-              LED1 = 0;
-          }  
-          if( rxmessage[1] == FLOOR2 ) {
-              LED2 = 0;
-          }     
-          /*if( rxmessage[1] == FLOOR3 ) {
-              LED3 = 0;
-          }*/
+            if( rxmessage[1] == FLOOR1 ) {
+                LED1 = 0;
+            }
+            if( rxmessage[1] == FLOOR2 ) {
+                LED2 = 0;
+            }
+            /*if( rxmessage[1] == FLOOR3 ) {
+                LED3 = 0;
+            }*/
         }
         
+#ifdef USE_LED7
         led7_write(led7_table[cur_floor]); 
-        
-        
-        //LCDhome();
-        //LCDclear();
-        //LCDprintf("Command: %s\nFloor%s Dir: %s", command, floor, direction);
+#endif
+#ifdef USE_LCD
+        LCDhome();
+        LCDclear();
+        LCDprintf("Command: %s\nFloor%s Dir: %s", command, floor, direction);
+#endif
         
         return;
         
 car_cmd_error:
-        return;
-       // LCDhome();
-       // LCDclear();
+        //LCDhome();
+        //LCDclear();
         //LCDprintf("Error in\ncommand");
+        return;
         
     }
 }
@@ -393,10 +428,12 @@ car_cmd_error:
  */
 
 void button_up(byte my_floor) {
-    CANframe txframe;   // Transmitted CAN frame
-    LED1 = 1; 							  
+    CANframe txframe;
+    LED1 = 1;
+#ifdef USE_LCD
     LCDclear();
     LCDprintf("Floor: %d\nDir: %s", my_floor, "up");
+#endif
     // Message to controller; up button pressed
     txframe.id = MSCAN_CTL_ID;
     txframe.priority = 0x01;
@@ -408,10 +445,12 @@ void button_up(byte my_floor) {
 }
 
 void button_down(byte my_floor) {
-    CANframe txframe;   // Transmitted CAN frame
-    LED2 = 1;	 
+    CANframe txframe;
+    LED2 = 1;
+#ifdef USE_LCD
     LCDclear();
     LCDprintf("Floor: %d\nDir: %s", my_floor, "down");
+#endif
     // Message to controller; down button pressed
     txframe.id = MSCAN_CTL_ID;
     txframe.priority = 0x01;
@@ -427,8 +466,8 @@ static byte sw2_pressed = 0;
 
 void callbox(byte my_floor) {
     byte rxmessage[PAYLOAD_SIZE];   // Received data payload
-    static byte floor, direction; 
-    word distance; 
+    static byte floor, direction;
+    word distance;
     CANframe txframe;   // Transmitted CAN frame
     
     floor = 0xFF;   // Start at false floor
@@ -456,38 +495,48 @@ void callbox(byte my_floor) {
                 floor = rxmessage[1];
                 direction = rxmessage[2];
                 
-                led7_write(led7_table[floor]);
+#ifdef USE_LCD
                 LCDclear();
                 LCDprintf("Floor: %d\nDir: %d", floor, direction);
+#endif
+#ifdef USE_LED7
+                led7_write(led7_table[floor]);
+#endif
                 break;
             case CMD_BUTTON_CALL:
                 rxmessage[1] == DIRECTION_UP ? button_up(my_floor) : button_down(my_floor);
                 break;
             case CMD_ERROR:
+#ifdef USE_LCD
                 LCDclear();
                 LCDprintf("Error condition\nreceived!");
+#endif
                 break;
             default:
+#ifdef USE_LCD
                 LCDclear();
                 LCDputs("Unknown command");
+#endif
                 break;
         }
         
+        // Turn off indicator LED once car has reached local floor
         if(floor == my_floor) {
             LED1 = 0; LED2 = 0;
         }
         
-    } 
-    if (floor == FLOOR1) {
-      distance = usonic_getDistance(); 
-      // Message to controller; down button pressed
-      txframe.id = MSCAN_CTL_ID;
-      txframe.priority = 0x01;
-      txframe.length = 3;
-      txframe.payload[0] = CMD_DISTANCE;
-      txframe.payload[1] = (distance & 0xFF00);         
-      txframe.payload[2] = (distance & 0x00FF);
-      CANsend(&txframe);
     }
+    if (my_floor == FLOOR1) {
+        distance = dist_read()/2; 
+        
+        txframe.id = MSCAN_CTL_ID;
+        txframe.priority = 0x01;
+        txframe.length = 3;
+        txframe.payload[0] = CMD_DISTANCE;
+        txframe.payload[1] = (distance & 0xFF00) >> 8;         
+        txframe.payload[2] = (distance & 0x00FF);
+        CANsend(&txframe);
+    }
+    
     msleep(100);
 }

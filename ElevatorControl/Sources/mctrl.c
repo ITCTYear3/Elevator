@@ -27,7 +27,9 @@ void mctrl_init(void) {
 
 /* Update analog differential voltage output to servo */
 void mctrl_update(void) {
-    int data = pid_output() & 0x0FFF;
+    unsigned int data;
+    
+    data = pid_output() & 0x0FFF;
     
     DACpreloadA(data);                  // Preload data into DAC channel A internal register
     DACloadBshiftA( (4096 - data) );    // Load data into DAC channel B and output it; load in preloaded channel A data and output it
