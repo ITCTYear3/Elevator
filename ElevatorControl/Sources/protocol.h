@@ -7,7 +7,6 @@
 #define MSCAN_FL1_ID    0x0004  // Floor 1 callbox node ID
 #define MSCAN_FL2_ID    0x0008  // Floor 2 callbox node ID
 #define MSCAN_FL3_ID    0x0010  // Floor 3 callbox node ID
-#define MSCAN_USENSE_ID 0x0020  // Ultrasonic sensor node ID
 
 
 //#define USE_LOOPBACK    // Will setup for loopback mode when defined
