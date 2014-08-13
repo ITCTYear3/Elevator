@@ -7,6 +7,7 @@
 #define MSCAN_FL1_ID    0x0004  // Floor 1 callbox node ID
 #define MSCAN_FL2_ID    0x0008  // Floor 2 callbox node ID
 #define MSCAN_FL3_ID    0x0010  // Floor 3 callbox node ID
+#define MSCAN_USENSE_ID 0x0020  // Ultrasonic sensor node ID
 
 
 //#define USE_LOOPBACK    // Will setup for loopback mode when defined
@@ -25,6 +26,7 @@
 #define CMD_BUTTON_CALL     0x01    // From callbox to controller
 #define CMD_BUTTON_CAR      0x02    // From callbox to controller
 #define CMD_DISP_APPEND     0x03    // From controller to car
+#define CMD_DISTANCE        0x04    // From usense node to controller
 #define CMD_ERROR           0xFF    // From any to any
 
 // Floor IDs

@@ -26,6 +26,7 @@ ID:8    Command                     CmdData                     Message flow dir
 0x01    Call button pressed         FloorId:8  CallButtonID:8   From callbox to controller
 0x02    Panel button pressed        PanelButtonID:8             From callbox to controller
 0x03    Append display character    Character:8                 From controller to elevator car
+0x04	Ultra Sonic Sensor Reading  DistanceHB:8 DistanceLB:8
 0xFF    Error                       ErrorId:8                   From any to any
 
 

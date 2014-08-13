@@ -19,6 +19,7 @@
 #include "lcdspi.h"
 #include "led7.h"
 #include "mcutilib.h"
+#include "usonic.h"
 
 #define LED1    PTS_PTS2
 #define LED2    PTS_PTS3
@@ -28,9 +29,9 @@
 #define CM_PER_FLOOR 15
 
 // Set local node ID (unique to each node)
-#define MSCAN_NODE_ID   MSCAN_CTL_ID
+//#define MSCAN_NODE_ID   MSCAN_CTL_ID
 //#define MSCAN_NODE_ID   MSCAN_CAR_ID
-//#define MSCAN_NODE_ID   MSCAN_FL1_ID
+#define MSCAN_NODE_ID   MSCAN_FL1_ID
 //#define MSCAN_NODE_ID   MSCAN_FL2_ID
 //#define MSCAN_NODE_ID   MSCAN_FL3_ID
 
@@ -236,6 +237,9 @@ void controller() {
                 case CMD_DISP_APPEND:
                     
                     break;
+                case CMD_DISTANCE:
+                    pid_feedback((rxmessage[1] << 8)|| rxmessage[2]);
+                    break;
                 case CMD_ERROR:
                     
                     break;
@@ -423,7 +427,9 @@ static byte sw2_pressed = 0;
 
 void callbox(byte my_floor) {
     byte rxmessage[PAYLOAD_SIZE];   // Received data payload
-    static byte floor, direction;
+    static byte floor, direction; 
+    word distance; 
+    CANframe txframe;   // Transmitted CAN frame
     
     floor = 0xFF;   // Start at false floor
     direction = DIRECTION_STATIONARY;   // Assume starting car direction is stationary
@@ -470,6 +476,18 @@ void callbox(byte my_floor) {
         if(floor == my_floor) {
             LED1 = 0; LED2 = 0;
         }
-    }   
+        
+    } 
+    if (floor == FLOOR1) {
+      distance = usonic_getDistance(); 
+      // Message to controller; down button pressed
+      txframe.id = MSCAN_CTL_ID;
+      txframe.priority = 0x01;
+      txframe.length = 3;
+      txframe.payload[0] = CMD_DISTANCE;
+      txframe.payload[1] = (distance & 0xFF00);         
+      txframe.payload[2] = (distance & 0x00FF);
+      CANsend(&txframe);
+    }
     msleep(100);
 }
