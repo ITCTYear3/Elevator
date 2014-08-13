@@ -26,18 +26,20 @@
 #define SW1     !PTJ_PTJ6
 #define SW2     !PTJ_PTJ7
 
-
-//#define USE_LCD     // HD44780 32 character LCD display board
-#define USE_LCD2    // HD44780 32 character LCD display board connected via SPI (Chris' Axman)
-//#define USE_LED7    // 7-segment custom callbox display board attachment
-
 #define CM_PER_FLOOR 15
 
+
+// All of these defines are auto chosen based on which node define is selected
+//#define USE_LCD     // HD44780 32 character LCD display board
+//#define USE_LCD2    // HD44780 32 character LCD display board connected via SPI (Chris' Axman)
+//#define USE_LED7    // 7-segment custom callbox display board attachment
+
+
 // Set local node ID (unique to each node)
-#define MSCAN_NODE_ID   MSCAN_CTL_ID
+//#define MSCAN_NODE_ID   MSCAN_CTL_ID
 //#define MSCAN_NODE_ID   MSCAN_CAR_ID
 //#define MSCAN_NODE_ID   MSCAN_FL1_ID
-//#define MSCAN_NODE_ID   MSCAN_FL2_ID
+#define MSCAN_NODE_ID   MSCAN_FL2_ID
 //#define MSCAN_NODE_ID   MSCAN_FL3_ID
 
 
@@ -45,21 +47,44 @@
 
     void controller(void);
     #define RUN()   controller();
+    
+    #ifndef USE_LCD
+    #define USE_LCD
+    #endif
 
 #elif MSCAN_NODE_ID == MSCAN_CAR_ID    
 
     void car(void);
     #define RUN()   car();
+    
+    #ifndef USE_LCD
+    #define USE_LCD
+    #endif
 
 #elif MSCAN_NODE_ID & (MSCAN_FL1_ID | MSCAN_FL2_ID | MSCAN_FL3_ID)
 
     void callbox(byte my_floor);
     #if MSCAN_NODE_ID == MSCAN_FL1_ID
         #define RUN()   callbox(FLOOR1);
+        
+        #ifndef USE_LCD2
+        #define USE_LCD2
+        #endif
+        
     #elif MSCAN_NODE_ID == MSCAN_FL2_ID
         #define RUN()   callbox(FLOOR2);
+        
+        #ifndef USE_LED7
+        #define USE_LED7
+        #endif
+        
     #elif MSCAN_NODE_ID == MSCAN_FL3_ID
         #define RUN()   callbox(FLOOR3);
+        
+        #ifndef USE_LCD
+        #define USE_LCD
+        #endif
+        
     #endif
 
 #else
@@ -563,6 +588,9 @@ void callbox(byte my_floor) {
         }
         
     }
+    
+    // Sonar sensor currently attached to callbox 1
+    // Send off distance message to controller node
     if (my_floor == FLOOR1) {
         distance = dist_read()/2; 
         
