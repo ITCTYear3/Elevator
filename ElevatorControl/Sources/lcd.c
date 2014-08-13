@@ -1,5 +1,7 @@
-/*           LCD module functions           */
-/* For Hitachi HD44780 character LCD module */
+/*
+ * LCD module functions
+ * For Hitachi HD44780 character LCD module
+ */
 
 #include <mc9s12c32.h>
 #include <stdio.h>      // for vsprintf()
@@ -8,6 +10,8 @@
 #include "timer.h"
 #include "lcd.h"
 #include "sci.h"
+
+//#define LCD_SERIAL  // If defined, LCDputs() will also output via SCI
 
 
 static void LCDcmd(byte cmd);
@@ -39,7 +43,7 @@ void LCDinit(void) {
     LCD_BUS( 0x02 );    // change to 4-bit mode
     LCD_E_LO;
     
-    msleep(2);  // extra wait before configure (nessesary!)
+    msleep(2);  // extra wait before configure (necessary!)
     
     // LCD is now synced, configure the display
     LCDcmd( LCD_CMD_FUNCTION | LCD_FUNCTION_4BIT | LCD_FUNCTION_2LINES | LCD_FUNCTION_5X8FONT );
@@ -96,9 +100,9 @@ void LCDputc(char c) {
 }
 
 /* Write string to LCD */
-void LCDputs(const char *str) {	 
+void LCDputs(const char *str) {
 #ifdef LCD_SERIAL
-	while ( ! sci_sendBytes((byte*)str, strlen(str)+1) );
+    while ( ! sci_sendBytes((byte*)str, strlen(str)+1) );
 #endif
     while(*str)
         LCDputc(*str++);  
@@ -174,10 +178,9 @@ byte LCDbusy(void) {
     return (LCDaddress() & LCD_BF_MASK) >> 7;  // return busy flag bit
 }
 
-/*****************************************************************************/
 
 /* Send LCD command */
-static void LCDcmd(byte cmd) {
+void LCDcmd(byte cmd) {
     // preamble
     LCD_E_LO;
     LCD_RS_IR;
@@ -197,9 +200,8 @@ static void LCDcmd(byte cmd) {
     msleep(1);
 }
 
-#define LCD_SERIAL
 /* Send LCD data */
-static void LCDdata(byte data) {
+void LCDdata(byte data) {
     // preamble
     LCD_E_LO;
     LCD_RS_DR;
@@ -217,13 +219,12 @@ static void LCDdata(byte data) {
     
     // wait for command to finish
     msleep(1);
-   
 }
 
 /* Write to character generator RAM */
 // cnum         3-bit value of character code number
 // line_data    pointer to array of 5-bit values used for character pattern data (size 7)
-static void LCDcgen(byte cnum, byte *line_data) {
+void LCDcgen(byte cnum, byte *line_data) {
     /***  For 5x7 character patterns  ***/
     /*** 8 possible custom characters ***/
     /*

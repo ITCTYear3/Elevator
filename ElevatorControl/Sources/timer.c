@@ -6,6 +6,7 @@
 // Timer overflow counter, updated by TCNT_Overflow_ISR interrupt handler
 static word volatile timer_overflow_count;
 
+#define FAST_FLAG_CLR
 
 /* Initialize timer module */
 void timer_init(void) {
@@ -19,7 +20,7 @@ void timer_init(void) {
 #endif
     TSCR2_TOI = 0;      // Disable overflow interrupt
     TSCR2_TCRE = 0;     // Disable TCNT reset on successful TC7 output compare event
-    SET_TCNT_PRESCALE(TCNT_PRESCALE_1); // Set timer prescaler to 1 (TCNT at 8MHz)
+    SET_TCNT_PRESCALE(TCNT_PRESCALE_8); // Set timer prescaler to 8 (TCNT at 1MHz)
     TSCR1_TEN = 1;      // Enable timer module
     
     timer_overflow_count = 0;
@@ -30,18 +31,16 @@ word get_overflow_count(void) {
     return timer_overflow_count;
 }
 
-/*      Milisecond sleep timer       */
-/* Uses output compare timer channel */
-/* to count in milisecond increments */
+/* Millisecond sleep timer */
 void msleep(word ms) {
     word i;
     
-    TC(TC_SLEEP) = TCNT + OC_DELTA_1MS; // Preset channel register
-    TC_OC(TC_SLEEP);                    // Enable channel as output compare
+    TC_OC(TC_SLEEP);
+    TC(TC_SLEEP) = TCNT + TIMETICKS_1MS;    // Preset channel register
     
     for(i=0; i < ms; i++) {
         while(!(TFLG1 & (1 << TC_SLEEP)));  // Wait for event
-        TC(TC_SLEEP) += OC_DELTA_1MS;       // Rearm channel register, clearing TFLG as well
+        TC(TC_SLEEP) += TIMETICKS_1MS;      // Rearm channel register, clearing TFLG as well
     }
 }
 
@@ -49,12 +48,12 @@ void msleep(word ms) {
 void usleep(word us) {
     word i;
     
-    TC(TC_SLEEP2) = TCNT + OC_DELTA_1US; // Preset channel register
-    TC_OC(TC_SLEEP2);                    // Enable channel as output compare
-    
+    TC_OC(TC_SLEEP2);
+    TC(TC_SLEEP2) = TCNT + TIMETICKS_1US;   // Preset channel register
+     
     for(i=0; i < us; i++) {
-        while(!(TFLG1 & (1 << TC_SLEEP2)));  // Wait for event
-        TC(TC_SLEEP2) += OC_DELTA_1US;       // Rearm channel register, clearing TFLG as well
+        while(!(TFLG1 & (1 << TC_SLEEP2))); // Wait for event
+        TC(TC_SLEEP2) += TIMETICKS_1US;     // Rearm channel register, clearing TFLG as well
     }
 }
 

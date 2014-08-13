@@ -1,5 +1,7 @@
-/*            LCD module macros             */
-/* For Hitachi HD44780 character LCD module */
+/*
+ * LCD module functions
+ * For Hitachi HD44780 character LCD module
+ */
 #ifndef _LCD_H
 #define _LCD_H
 
@@ -18,7 +20,6 @@
 #define LCD_RW_BIT          PORTA_BIT6_MASK     // LCD read/write
 #define LCD_BUS_BITS        ( PORTA_BIT0_MASK | PORTA_BIT1_MASK | PORTA_BIT2_MASK | PORTA_BIT3_MASK )
 
-/*****************************************************************************/
 
 // Low-level LCD macros
 #define LCD_E_LO            CLR_BITS(LCD_PORT,LCD_E_BIT)
@@ -86,19 +87,16 @@
 
 #define LCD_DDADDR_LINE2        0x40    // DD RAM address for beginning of second line
 
-/*****************************************************************************/
 
 void LCDinit(void);
 void LCDclear(void);
 void LCDhome(void);
 void LCDbksp(void);
-void LCDputc(char);
-void LCDputs(const char *);
-void LCDprintf(const char *, ... );
+void LCDputc(char c);
+void LCDputs(const char *str);
+void LCDprintf(const char *fmt, ... );
 byte LCDgetc(void);
 byte LCDaddress(void);
 byte LCDbusy(void);
-
-
 
 #endif // _LCD_H
