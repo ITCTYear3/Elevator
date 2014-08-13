@@ -35,6 +35,9 @@ void dist_init(void) {
 /* Count echo pin pulse length */
 // TODO: return value converted to mm distance length
 word dist_read(void) {
+    word count;
+    dword count2;
+    
     PACNT = 0;  // Reset pulse accumulator count
     PAFLG = PAFLG_PAIF_MASK;    // Clear interrupt edge flag by writing a one to it
     
@@ -45,13 +48,28 @@ word dist_read(void) {
     
     while(!PAFLG_PAIF); // Wait for falling edge on echo pin
     
+    /* Calculate distance in mm:
+    * PACLK is bus clock divided by 64 (8MHz / 64 = 125kHz)
+    * Each PACLK time tick is 8us
+    * time ticks * 8 = pulse width(us)
+    * pulse width(us) / 58 = distance(cm)
+    * distance(cm) * 10 = distance(mm)
+    */
+    //count = 10*((PACNT*8) / 58);
+    /* Using binary scaling to get a good estimate
+    * (PACNT*(80/58)*8)/8 = PACNT*(80/58)
+    */
+    count = PACNT;
+    count2 = 11 * (dword)count;
+    count = (word)(count2 / 8);
+    
     // Check in case of PACNT overflow
     if(PAFLG_PAOVF) {
         PAFLG = PAFLG_PAOVF_MASK;   // Clear overflow flag by writing a one to it
         return 0;
     }
     
-    return PACNT;
+    return count;
 }
 
 /* Current PACNT overflow count */
