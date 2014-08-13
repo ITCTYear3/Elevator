@@ -15,6 +15,7 @@
 #include "dist.h"
 #include "pid.h"
 #include "mctrl.h"
+#include "simpleQueue.h"
 #include "lcd.h"
 #include "lcdspi.h"
 #include "led7.h"
@@ -138,7 +139,8 @@ void update_floor(byte floor) {
 void controller() {
     byte sw1_pressed = 0, sw2_pressed = 0;
     byte rxmessage[PAYLOAD_SIZE];   // Received data payload 
-    byte button_floor, button_direction;
+    byte button_floor;
+	byte next_floor;
     char *button_floor_str, *button_direction_str;
     
     byte update_lcd = 1;
@@ -213,9 +215,11 @@ void controller() {
             switch(rxmessage[0]) {
             case CMD_BUTTON_CALL:
                 button_floor = rxmessage[1];
-                button_direction = rxmessage[2];
                 
-                switch(button_floor) {
+                addToQueue(button_floor);
+                next_floor = peekNextFloor();
+                
+                switch(cur_floor) {
                 case FLOOR1:
                     button_floor_str = "1";
                     break;
@@ -228,18 +232,13 @@ void controller() {
                 default:
                     break;
                 }
-                switch(button_direction) {
-                case DIRECTION_UP:
-                    button_direction_str = "up  ";
-                    break;
-                case DIRECTION_DOWN:
-                    button_direction_str = "down";
-                    break;
-                case DIRECTION_STATIONARY:
+                
+                if(next_floor == cur_floor){
                     button_direction_str = "stat";
-                    break;
-                default:
-                    break;
+                }else if(next_floor > cur_floor){
+                    button_direction_str = "up  ";
+                }else {
+                    button_direction_str = "down";
                 }
                 
 #ifdef USE_LCD

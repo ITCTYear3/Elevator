@@ -29,6 +29,7 @@ from wx.lib.pubsub import pub
 known_hosts = {
     "A3146-08.conestogac.on.ca" : (31000, "A3146-04.conestogac.on.ca"),
     "A3146-04.conestogac.on.ca" : (31001, "A3146-08.conestogac.on.ca"),
+    "A3146-06.conestogac.on.ca" : (31002, "A3146-06.conestogac.on.ca"),
     "Chris-PC" : (31000, "Chris-PC"),
     "localhost" : (30999, "localhost")
 }
@@ -116,7 +117,7 @@ cmds = {
 
 
 class SerialClient(threading.Thread):
-    """Busy wait watching serial port for new incomming data and pass data to subscriber"""
+    """Busy wait watching serial port for new incoming data and pass data to subscriber"""
     def __init__(self, port='COM1', baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE):
         threading.Thread.__init__(self)
         
@@ -162,7 +163,7 @@ class SerialClient(threading.Thread):
             payload = payload[1:]
         
     def reader_sm(self):
-        """Poll serial port for incomming data and
+        """Poll serial port for incoming data and
            parse it to determine if it is a frame or a plain string"""
         state = 'idh'
         frame = []
