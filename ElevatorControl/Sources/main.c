@@ -139,7 +139,7 @@ void update_floor(byte floor) {
 void controller() {
     byte sw1_pressed = 0, sw2_pressed = 0;
     byte rxmessage[PAYLOAD_SIZE];   // Received data payload 
-    byte button_floor;
+    byte button_pressed;
 	byte next_floor;
     char *button_floor_str, *button_direction_str;
     
@@ -214,9 +214,9 @@ void controller() {
             
             switch(rxmessage[0]) {
             case CMD_BUTTON_CALL:
-                button_floor = rxmessage[1];
+                button_pressed = rxmessage[1];
                 
-                addToQueue(button_floor);
+                addToQueue(button_pressed);
                 next_floor = peekNextFloor();
                 
                 switch(cur_floor) {
@@ -255,11 +255,20 @@ void controller() {
 #endif
                 break;
             case CMD_BUTTON_CAR:
-                
-                break;
-            case CMD_DISP_APPEND:
-                
-                break;
+				button_pressed = rxmessage[1];
+				
+				if(button_pressed < BUTTON_DOOR_CLOSE)
+					addToQueue(button_pressed);
+					
+                switch(button_pressed){
+				case BUTTON_DOOR_CLOSE:
+					break;
+				case BUTTON_DOOR_OPEN:
+					break;
+				case BUTTON_STOP:
+					break;
+				default:
+					break;
             case CMD_DISTANCE:
                 distance = (rxmessage[1] << 8) | rxmessage[2];
                 pid_feedback(distance);
