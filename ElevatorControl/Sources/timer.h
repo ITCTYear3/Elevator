@@ -6,7 +6,7 @@
 
 
 /* (NOTE: For some reason it appears as though reading TCNT does NOT clear the TOF flag in FFC mode) */
-//#define FAST_FLAG_CLR       // Fast flag clear is enabled
+#define FAST_FLAG_CLR       // Fast flag clear is enabled
 
 #define TC_SLEEP        3   // msleep function timer channel (0-7), must not conflict with other channels in use
 #define TC_SLEEP2       4   // usleep function timer channel (0-7), must not conflict with other channels in use
