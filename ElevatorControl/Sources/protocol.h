@@ -50,11 +50,6 @@
 #define BUTTON_DOOR_OPEN    0x11
 #define BUTTON_STOP         0xEE
 
-// Elevator car button port mappings
-#define DRCLOSE   0x08
-#define DROPEN    0x10
-#define ESTOP     0x20
-
 // Error IDs
 #define ERROR_CLR           0x00
 #define ERROR_GENERAL       0x01

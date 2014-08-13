@@ -26,6 +26,14 @@
 #define SW1     !PTJ_PTJ6
 #define SW2     !PTJ_PTJ7
 
+// Elevator car button port mappings
+#define BTN_FLOOR1      PORTB_BIT0
+#define BTN_FLOOR2      PORTB_BIT1
+#define BTN_FLOOR3      PORTB_BIT2
+#define BTN_DRCLOSE     PORTB_BIT3
+#define BTN_DROPEN      PORTB_BIT4
+#define BTN_ESTOP       PORTB_BIT5
+
 #define CM_PER_FLOOR 15
 
 
@@ -37,9 +45,9 @@
 
 // Set local node ID (unique to each node)
 //#define MSCAN_NODE_ID   MSCAN_CTL_ID
-//#define MSCAN_NODE_ID   MSCAN_CAR_ID
+#define MSCAN_NODE_ID   MSCAN_CAR_ID
 //#define MSCAN_NODE_ID   MSCAN_FL1_ID
-#define MSCAN_NODE_ID   MSCAN_FL2_ID
+//#define MSCAN_NODE_ID   MSCAN_FL2_ID
 //#define MSCAN_NODE_ID   MSCAN_FL3_ID
 
 
@@ -179,7 +187,7 @@ void controller() {
     
     for(;;) {
         
-        distance = dist_read()/2;   // div2 is a temporary kludge
+        //distance = dist_read()/2;   // div2 is a temporary kludge
         last_floor = cur_floor;
         if ( distance > (7*5*CM_PER_FLOOR) ) {
             car_height = 999;
@@ -195,6 +203,11 @@ void controller() {
 #endif
             if ( cur_floor != last_floor ) {
                 update_floor(cur_floor);
+                
+                // if we have reached the target floor, pop off the top of the queue
+                // TODO: change name of getNextFloor() to be more descriptive
+                if(cur_floor == next_floor)
+                getNextFloor();
             }
             
             // Update PID controller feedback value
@@ -243,6 +256,7 @@ void controller() {
                 
                 addToQueue(button_pressed);
                 next_floor = peekNextFloor();
+                pid_setpoint(next_floor);
                 
                 switch(cur_floor) {
                 case FLOOR1:
@@ -258,11 +272,11 @@ void controller() {
                     break;
                 }
                 
-                if(next_floor == cur_floor){
+                if(next_floor == cur_floor) {
                     button_direction_str = "stat";
-                }else if(next_floor > cur_floor){
+                } else if(next_floor > cur_floor) {
                     button_direction_str = "up  ";
-                }else {
+                } else {
                     button_direction_str = "down";
                 }
                 
@@ -280,13 +294,15 @@ void controller() {
 #endif
                 break;
             case CMD_BUTTON_CAR:
-				button_pressed = rxmessage[1];
-				if(button_pressed == BUTTON_STOP){
-					// call emergency stop function
-				}else if(button_pressed < BUTTON_DOOR_CLOSE)
-					addToQueue(button_pressed);
-					
-				next_floor = peekNextFloor();
+                button_pressed = rxmessage[1];
+                if(button_pressed == BUTTON_STOP) {
+                    // call emergency stop function
+                } else if(button_pressed < BUTTON_DOOR_CLOSE) {
+                    addToQueue(button_pressed);
+                }
+                    
+                next_floor = peekNextFloor();
+                pid_setpoint(next_floor);
                 
                 switch(cur_floor) {
                 case FLOOR1:
@@ -313,7 +329,7 @@ void controller() {
 #ifdef USE_LCD
                 LCDhome();
                 LCDprintf("\nFloor%s Dir %s", button_floor_str, button_direction_str);
-#else
+#endif
 #ifdef USE_LCD2
                 lcd_goto(0x10); // Start at second line
                 lcd_puts("Floor");
@@ -321,11 +337,14 @@ void controller() {
                 lcd_puts(" Dir ");
                 lcd_puts(button_direction_str);
 #endif
-#endif
-				break;
+                break;
             case CMD_DISTANCE:
                 distance = (rxmessage[1] << 8) | rxmessage[2];
                 pid_feedback(distance);
+#ifdef USE_LCD
+                LCDclear();
+                LCDprintf("Dist: %d", distance);
+#endif
                 break;
             case CMD_ERROR:
                 
@@ -334,11 +353,10 @@ void controller() {
 #ifdef USE_LCD
                 LCDclear();
                 LCDputs("\nUnknown command");
-#else
+#endif
 #ifdef USE_LCD2
                 lcd_goto(0x10); // Start at second line
                 lcd_puts("Unknown command");
-#endif
 #endif
                 break;
             }
@@ -358,7 +376,7 @@ void car(void) {
     byte sw1_pressed = 0, sw2_pressed = 0;
     char *command, *floor, *direction;
     byte cur_floor;
-    int elevatorDirection = 0xFF;
+    byte elevatorDirection = 0xFF;
     
     CANframe txframe;               // Transmitted CAN frames
     byte rxmessage[PAYLOAD_SIZE];   // Received data payload
@@ -373,104 +391,87 @@ void car(void) {
     txframe.payload[2] = DIRECTION_STATIONARY; 
     
     
-    if(PORTB == FLOOR1) {           
-         if (BUTTON_FL1 > cur_floor) 
-         {
-             elevatorDirection = DIRECTION_DOWN;
-         } 
-         else if (BUTTON_FL1 < cur_floor) 
-         {
-             elevatorDirection = DIRECTION_UP;
-         } 
-         else 
-         {
-             elevatorDirection = DIRECTION_STATIONARY;
-         }
-         
-  	     txframe.payload[1] = BUTTON_FL1;
-  	     txframe.payload[2] = elevatorDirection;
-                
-         ret = CANsend(&txframe);
-         if(ret) {
-             // Message could not be sent!
-         }
+    if(BTN_FLOOR1) {
+        if (BUTTON_FL1 > cur_floor) {
+            elevatorDirection = DIRECTION_DOWN;
+        } else if (BUTTON_FL1 < cur_floor) {
+            elevatorDirection = DIRECTION_UP;
+        } else {
+            elevatorDirection = DIRECTION_STATIONARY;
+        }
+        
+        txframe.payload[1] = BUTTON_FL1;
+        txframe.payload[2] = elevatorDirection;
+        
+        ret = CANsend(&txframe);
+        if(ret) {
+            // Message could not be sent!
+        }
     }
-    if(PORTB == FLOOR2) {          
-         if (BUTTON_FL2 > cur_floor) 
-         {
-             elevatorDirection = DIRECTION_DOWN;
-         } 
-         else if (BUTTON_FL2 < cur_floor) 
-         {
-             elevatorDirection = DIRECTION_UP;
-         } 
-         else 
-         {
-             elevatorDirection = DIRECTION_STATIONARY;
-         }
-         
-  	     txframe.payload[1] = BUTTON_FL2;
-  	     txframe.payload[2] = elevatorDirection;
-                
-         ret = CANsend(&txframe);
-         if(ret) {
-             // Message could not be sent!
-         }
-    } 
-    // +1 is used because the physical button is bit 3, logical number 4.
-    if(PORTB == (FLOOR3 + 1)) {             
-         if (BUTTON_FL3 > cur_floor) 
-         {
-             elevatorDirection = DIRECTION_DOWN;
-         } 
-         else if (BUTTON_FL3 < cur_floor) 
-         {
-             elevatorDirection = DIRECTION_UP;
-         } 
-         else 
-         {
-             elevatorDirection = DIRECTION_STATIONARY;
-         }
-         
-  	     txframe.payload[1] = BUTTON_FL3;
-  	     txframe.payload[2] = elevatorDirection;
-                
-         ret = CANsend(&txframe);
-         if(ret) {
-             // Message could not be sent!
-         }
+    if(BTN_FLOOR2) {
+        if (BUTTON_FL2 > cur_floor) {
+            elevatorDirection = DIRECTION_DOWN;
+        } else if (BUTTON_FL2 < cur_floor) {
+            elevatorDirection = DIRECTION_UP;
+        } else {
+            elevatorDirection = DIRECTION_STATIONARY;
+        }
+        
+        txframe.payload[1] = BUTTON_FL2;
+        txframe.payload[2] = elevatorDirection;
+        
+        ret = CANsend(&txframe);
+        if(ret) {
+            // Message could not be sent!
+        }
     }
-     
-    if(PORTB == DROPEN) {
-  	     txframe.payload[1] = BUTTON_DOOR_OPEN;
-  	     txframe.payload[2] = elevatorDirection;
-                
-         ret = CANsend(&txframe);
-         if(ret) {
-             // Message could not be sent!
-         }
+    if(BTN_FLOOR3) {
+        if (BUTTON_FL3 > cur_floor) {
+            elevatorDirection = DIRECTION_DOWN;
+        } else if (BUTTON_FL3 < cur_floor) {
+            elevatorDirection = DIRECTION_UP;
+        } else {
+            elevatorDirection = DIRECTION_STATIONARY;
+        }
+        
+        txframe.payload[1] = BUTTON_FL3;
+        txframe.payload[2] = elevatorDirection;
+        
+        ret = CANsend(&txframe);
+        if(ret) {
+            // Message could not be sent!
+        }
     }
-     
-    if(PORTB == DRCLOSE) {   
-         
-  	     txframe.payload[1] = BUTTON_DOOR_CLOSE;
-  	     txframe.payload[2] = elevatorDirection;
-                
-         ret = CANsend(&txframe);
-         if(ret) {
-             // Message could not be sent!
-         }
+    if(BTN_DROPEN) {
+        txframe.payload[1] = BUTTON_DOOR_OPEN;
+        txframe.payload[2] = elevatorDirection;
+        
+        ret = CANsend(&txframe);
+        if(ret) {
+            // Message could not be sent!
+        }
     }
-    if(PORTB == ESTOP) {     
-         
-  	     txframe.payload[1] = BUTTON_STOP;
-  	     txframe.payload[2] = elevatorDirection;
-                
-         ret = CANsend(&txframe);
-         if(ret) {
-             // Message could not be sent!
-         }
+    if(BTN_DRCLOSE) {
+        
+        txframe.payload[1] = BUTTON_DOOR_CLOSE;
+        txframe.payload[2] = elevatorDirection;
+        
+        ret = CANsend(&txframe);
+        if(ret) {
+            // Message could not be sent!
+        }
     }
+    if(BTN_ESTOP) {
+        
+        txframe.payload[1] = BUTTON_STOP;
+        txframe.payload[2] = elevatorDirection;
+        
+        ret = CANsend(&txframe);
+        if(ret) {
+            // Message could not be sent!
+        }
+    }
+    
     // CAN bus <-> serial link
     // Check for new incoming messages and send out received messages via serial
     runSerialCAN(MSCAN_NODE_ID);
@@ -604,6 +605,8 @@ void callbox(byte my_floor) {
     floor = 0xFF;   // Start at false floor
     direction = DIRECTION_STATIONARY;   // Assume starting car direction is stationary
     
+    dist_init();
+    
     if(SW1 && !sw1_pressed) {  
         sw1_pressed = 1;
         button_up(my_floor);
@@ -661,7 +664,7 @@ void callbox(byte my_floor) {
     // Sonar sensor currently attached to callbox 1
     // Send off distance message to controller node
     if (my_floor == FLOOR1) {
-        distance = dist_read()/2; 
+        distance = dist_read();
         
         txframe.id = MSCAN_CTL_ID;
         txframe.priority = 0x01;
