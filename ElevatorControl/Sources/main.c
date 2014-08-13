@@ -153,6 +153,7 @@ void controller() {
     //mctrl_init();   // Initialize servo motor controller
     
     for(;;) {
+        
         distance = dist_read()/2;   // div2 is a temporary kludge
         last_floor = cur_floor;
         if ( distance > (7*5*CM_PER_FLOOR) ) {
@@ -169,11 +170,6 @@ void controller() {
 #endif
             if ( cur_floor != last_floor ) {
                 update_floor(cur_floor);
-				
-				// if we have reached the target floor, pop off the top of the queue
-				// TODO: change name of getNextFloor() to be more descriptive
-				if(cur_floor == next_floor)
-					getNextFloor();
             }
             
             // Update PID controller feedback value
@@ -222,8 +218,6 @@ void controller() {
                 
                 addToQueue(button_pressed);
                 next_floor = peekNextFloor();
-				
-				pid_setpoint(next_floor);
                 
                 switch(cur_floor) {
                 case FLOOR1:
@@ -268,7 +262,6 @@ void controller() {
 					addToQueue(button_pressed);
 					
 				next_floor = peekNextFloor();
-				pid_setpoint(next_floor);
                 
                 switch(cur_floor) {
                 case FLOOR1:
@@ -340,50 +333,119 @@ void car(void) {
     byte sw1_pressed = 0, sw2_pressed = 0;
     char *command, *floor, *direction;
     byte cur_floor;
+    int elevatorDirection = 0xFF;
     
     CANframe txframe;               // Transmitted CAN frames
     byte rxmessage[PAYLOAD_SIZE];   // Received data payload
     
+    cur_floor = 0;
     
     // Message to controller; floor 1
     txframe.id = MSCAN_CTL_ID;
     txframe.priority = 0x01;
     txframe.length = 2;
     txframe.payload[0] = CMD_BUTTON_CAR;
-    //txframe.payload[2] = DIRECTION_STATIONARY; 
+    txframe.payload[2] = DIRECTION_STATIONARY; 
     
     
-    if(SW1 && !sw1_pressed) {
-        sw1_pressed = 1;
-        LED1 = 1;
-        
-        txframe.payload[1] = FLOOR1;          
-        ret = CANsend(&txframe);
-        if(ret) {
-            // Message could not be sent!
-        }
+    if(PORTB == FLOOR1) {           
+         if (BUTTON_FL1 > cur_floor) 
+         {
+             elevatorDirection = DIRECTION_DOWN;
+         } 
+         else if (BUTTON_FL1 < cur_floor) 
+         {
+             elevatorDirection = DIRECTION_UP;
+         } 
+         else 
+         {
+             elevatorDirection = DIRECTION_STATIONARY;
+         }
+         
+  	     txframe.payload[1] = BUTTON_FL1;
+  	     txframe.payload[2] = elevatorDirection;
+                
+         ret = CANsend(&txframe);
+         if(ret) {
+             // Message could not be sent!
+         }
     }
-    if(SW2 && !sw2_pressed) {
-        sw2_pressed = 1;
-        LED2 = 1;
-        
-        txframe.payload[1] = FLOOR2;         
-        ret = CANsend(&txframe);
-        if(ret) {
-            // Message could not be sent!
-        }
+    if(PORTB == FLOOR2) {          
+         if (BUTTON_FL2 > cur_floor) 
+         {
+             elevatorDirection = DIRECTION_DOWN;
+         } 
+         else if (BUTTON_FL2 < cur_floor) 
+         {
+             elevatorDirection = DIRECTION_UP;
+         } 
+         else 
+         {
+             elevatorDirection = DIRECTION_STATIONARY;
+         }
+         
+  	     txframe.payload[1] = BUTTON_FL2;
+  	     txframe.payload[2] = elevatorDirection;
+                
+         ret = CANsend(&txframe);
+         if(ret) {
+             // Message could not be sent!
+         }
     } 
-    /*if(SW3 && !sw3_pressed) {
-        sw3_pressed = 1;
-        LED3 = 1;      
-        
-        txframe.payload[1] = FLOOR3;         
-        ret = CANsend(&txframe);
-        if(ret) {
-            // Message could not be sent!
-        }
-    }*/
-    
+    // +1 is used because the physical button is bit 3, logical number 4.
+    if(PORTB == (FLOOR3 + 1)) {             
+         if (BUTTON_FL3 > cur_floor) 
+         {
+             elevatorDirection = DIRECTION_DOWN;
+         } 
+         else if (BUTTON_FL3 < cur_floor) 
+         {
+             elevatorDirection = DIRECTION_UP;
+         } 
+         else 
+         {
+             elevatorDirection = DIRECTION_STATIONARY;
+         }
+         
+  	     txframe.payload[1] = BUTTON_FL3;
+  	     txframe.payload[2] = elevatorDirection;
+                
+         ret = CANsend(&txframe);
+         if(ret) {
+             // Message could not be sent!
+         }
+    }
+     
+    if(PORTB == DROPEN) {
+  	     txframe.payload[1] = BUTTON_DOOR_OPEN;
+  	     txframe.payload[2] = elevatorDirection;
+                
+         ret = CANsend(&txframe);
+         if(ret) {
+             // Message could not be sent!
+         }
+    }
+     
+    if(PORTB == DRCLOSE) {   
+         
+  	     txframe.payload[1] = BUTTON_DOOR_CLOSE;
+  	     txframe.payload[2] = elevatorDirection;
+                
+         ret = CANsend(&txframe);
+         if(ret) {
+             // Message could not be sent!
+         }
+    }
+    if(PORTB == ESTOP) {     
+         
+  	     txframe.payload[1] = BUTTON_STOP;
+  	     txframe.payload[2] = elevatorDirection;
+                
+         ret = CANsend(&txframe);
+         if(ret) {
+             // Message could not be sent!
+         }
+    }
     // CAN bus <-> serial link
     // Check for new incoming messages and send out received messages via serial
     runSerialCAN(MSCAN_NODE_ID);
