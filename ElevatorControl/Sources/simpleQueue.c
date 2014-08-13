@@ -26,27 +26,27 @@ char peekNextFloor() {
 
 char getNextFloor () {
 
-    char nextFloor = queue[queuePos]; //grab the floor at the front of the queue
+    char nextFloor;
     
-    if (numInQueue == 0){ //check to see if there is any valid data in the queue
-        return 0; //nothing valid in the queue, simply return 0
-    }
+    if (numInQueue == 0)					//check to see if there is any valid data in the queue
+        return 0; 							//nothing valid in the queue, simply return 0
+		
+	nextFloor = queue[queuePos]; 			//grab the floor at the front of the queue
     
-    numInQueue--; //there was something valid in the queue, so decrement the number in the queue
+    numInQueue--; 							//there was something valid in the queue, so decrement the number in the queue
     
-    queuePos = (queuePos + 1) % QUEUE_LEN; //move the top position of the queue as it has been popped
+    queuePos = (queuePos + 1) % QUEUE_LEN; 	//move the top position of the queue as it has been popped
     
-    return nextFloor; //return the target floor
+    return nextFloor; 						//return the target floor
 }
 
 void addToQueue ( char floorNum ){
     int i;
     
-    //check to see if the floor being added to the queue is already present
+	//check to see if the floor being added to the queue is already present
     for(i=0; i < QUEUE_LEN; i++){ 
-        if (floorNum == queue[i]){
+        if (floorNum == queue[i])
             return;
-        }
     }
     
     //floor wasn't in queue, add it to the end of the queue and increment the queue length
