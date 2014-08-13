@@ -153,7 +153,6 @@ void controller() {
     //mctrl_init();   // Initialize servo motor controller
     
     for(;;) {
-        
         distance = dist_read()/2;   // div2 is a temporary kludge
         last_floor = cur_floor;
         if ( distance > (7*5*CM_PER_FLOOR) ) {
@@ -170,6 +169,11 @@ void controller() {
 #endif
             if ( cur_floor != last_floor ) {
                 update_floor(cur_floor);
+				
+				// if we have reached the target floor, pop off the top of the queue
+				// TODO: change name of getNextFloor() to be more descriptive
+				if(cur_floor == next_floor)
+					getNextFloor();
             }
             
             // Update PID controller feedback value
@@ -218,6 +222,8 @@ void controller() {
                 
                 addToQueue(button_pressed);
                 next_floor = peekNextFloor();
+				
+				pid_setpoint(next_floor);
                 
                 switch(cur_floor) {
                 case FLOOR1:
@@ -262,6 +268,7 @@ void controller() {
 					addToQueue(button_pressed);
 					
 				next_floor = peekNextFloor();
+				pid_setpoint(next_floor);
                 
                 switch(cur_floor) {
                 case FLOOR1:
