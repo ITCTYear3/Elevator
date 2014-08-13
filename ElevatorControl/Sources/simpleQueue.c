@@ -6,10 +6,15 @@ Simple circular buffer
 
 */
 
-#include simpleQueue.h
+#include "simpleQueue.h"
+
+//Globals for the queue, head of the queue and number in queue
+static char queue[QUEUE_LEN] = {0};
+static int queuePos = 0;
+static int numInQueue = 0;
 
 char peekNextFloor() {
-	int nextFloor;
+	char nextFloor;
 	
 	if (numInQueue == 0) 	//check to see if there is any valid data in the queue
         return 0; 			//nothing valid in the queue, simply return 0
@@ -21,7 +26,7 @@ char peekNextFloor() {
 
 char getNextFloor () {
 
-    int nextFloor = queue[queuePos]; //grab the floor at the front of the queue
+    char nextFloor = queue[queuePos]; //grab the floor at the front of the queue
     
     if (numInQueue == 0){ //check to see if there is any valid data in the queue
         return 0; //nothing valid in the queue, simply return 0
