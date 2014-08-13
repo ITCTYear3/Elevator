@@ -256,19 +256,48 @@ void controller() {
                 break;
             case CMD_BUTTON_CAR:
 				button_pressed = rxmessage[1];
-				
-				if(button_pressed < BUTTON_DOOR_CLOSE)
+				if(button_pressed == BUTTON_STOP){
+					// call emergency stop function
+				}else if(button_pressed < BUTTON_DOOR_CLOSE)
 					addToQueue(button_pressed);
 					
-                switch(button_pressed){
-				case BUTTON_DOOR_CLOSE:
-					break;
-				case BUTTON_DOOR_OPEN:
-					break;
-				case BUTTON_STOP:
-					break;
-				default:
-					break;
+				next_floor = peekNextFloor();
+                
+                switch(cur_floor) {
+                case FLOOR1:
+                    button_floor_str = "1";
+                    break;
+                case FLOOR2:
+                    button_floor_str = "2";
+                    break;
+                case FLOOR3:
+                    button_floor_str = "3";
+                    break;
+                default:
+                    break;
+                }
+                
+                if(next_floor == cur_floor){
+                    button_direction_str = "stat";
+                }else if(next_floor > cur_floor){
+                    button_direction_str = "up  ";
+                }else {
+                    button_direction_str = "down";
+                }
+                
+#ifdef USE_LCD
+                LCDhome();
+                LCDprintf("\nFloor%s Dir %s", button_floor_str, button_direction_str);
+#else
+#ifdef USE_LCD2
+                lcd_goto(0x10); // Start at second line
+                lcd_puts("Floor");
+                lcd_puts(button_floor_str);
+                lcd_puts(" Dir ");
+                lcd_puts(button_direction_str);
+#endif
+#endif
+				break;
             case CMD_DISTANCE:
                 distance = (rxmessage[1] << 8) | rxmessage[2];
                 pid_feedback(distance);
