@@ -6,7 +6,6 @@
 // Timer overflow counter, updated by TCNT_Overflow_ISR interrupt handler
 static word volatile timer_overflow_count;
 
-#define FAST_FLAG_CLR
 
 /* Initialize timer module */
 void timer_init(void) {
