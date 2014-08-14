@@ -218,3 +218,4 @@ pip-log.txt
 *.stg
 *.tdt
 ObjectCode/*.o
+P&E_Multilink_USB.ini
