@@ -253,7 +253,7 @@ class SerialClient(threading.Thread):
                 #if ( length > 0 and payload[0] != 0 ):  # Filter location spam
                 if True:
                     if payload_decode.split()[0] == cmds[4][0]:
-                        msg = "{}: {}".format(payload_decode.split()[0], int(payload_decode.split()[1])*256 + int(payload_decode.split()[2]))
+                        msg = "{}: {}\n\n".format(payload_decode.split()[0], int(payload_decode.split()[1])*256 + int(payload_decode.split()[2]))
                     else:
                         msg = "Frame\n------\nID: {}\nPriority: {}\nLength: {}\nPayload: {} \"{}\"\n\n".format(id, priority, length, payload, payload_decode)
                     wx.CallAfter(pub.sendMessage, 'update', data=msg)
