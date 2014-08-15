@@ -26,6 +26,7 @@ void pid_init(int Kp, int Ki, int Kd, long limit, int factor) {
     pid.out_limit_min = -MAX_12BIT/2;
     pid.int_limit = limit;
     pid.conv_factor = factor * 100;
+    pid.setpoint = pid.sp_limit_min;
     
     // Reset error values
     pid.prev_err = 0;
