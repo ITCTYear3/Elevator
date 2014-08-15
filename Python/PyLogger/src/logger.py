@@ -110,6 +110,9 @@ cmds = {
     3: ("PrintChar", {
         "#": {}
     }),
+    4: ("Distance", {
+        "#": {"#": {}}
+    }),
     0xFF: ("ERROR", {
         0: ("AllClear",{}), 1: ("GenericERROR",{})
     }),
@@ -249,7 +252,10 @@ class SerialClient(threading.Thread):
                 length = frame[3]
                 #if ( length > 0 and payload[0] != 0 ):  # Filter location spam
                 if True:
-                    msg = "Frame\n------\nID: {}\nPriority: {}\nLength: {}\nPayload: {} \"{}\"\n\n".format(id, priority, length, payload, payload_decode)
+                    if payload_decode.split()[0] == cmds[4][0]:
+                        msg = "{}: {}\n\n".format(payload_decode.split()[0], int(payload_decode.split()[1])*256 + int(payload_decode.split()[2]))
+                    else:
+                        msg = "Frame\n------\nID: {}\nPriority: {}\nLength: {}\nPayload: {} \"{}\"\n\n".format(id, priority, length, payload, payload_decode)
                     wx.CallAfter(pub.sendMessage, 'update', data=msg)
                     if payload_decode.split()[0] == cmds[0][0]:
                         wx.CallAfter(pub.sendMessage, 'updateFloor', data=payload_decode.split()[1])
