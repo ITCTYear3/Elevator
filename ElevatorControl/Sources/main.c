@@ -34,7 +34,10 @@
 #define BTN_DROPEN      PORTB_BIT4
 #define BTN_ESTOP       PORTB_BIT5
 
-#define CM_PER_FLOOR 15
+#define FLOOR_MARGIN            50      // Margin in mm above or below floor distance setpoint
+#define SETPOINT_F1             50
+#define SETPOINT_F2             625
+#define SETPOINT_F3             1230
 
 
 // All of these defines are auto chosen based on which node define is selected
@@ -44,8 +47,8 @@
 
 
 // Set local node ID (unique to each node)
-//#define MSCAN_NODE_ID   MSCAN_CTL_ID
-#define MSCAN_NODE_ID   MSCAN_CAR_ID
+#define MSCAN_NODE_ID   MSCAN_CTL_ID
+//#define MSCAN_NODE_ID   MSCAN_CAR_ID
 //#define MSCAN_NODE_ID   MSCAN_FL1_ID
 //#define MSCAN_NODE_ID   MSCAN_FL2_ID
 //#define MSCAN_NODE_ID   MSCAN_FL3_ID
@@ -164,6 +167,25 @@ void update_floor(byte floor) {
     CANsend(&txframe);
 }
 
+#pragma INLINE
+int FLOOR2SETPOINT(byte floor) {
+    switch(floor) {
+    case FLOOR1:
+        return SETPOINT_F1;
+        break;
+    case FLOOR2:
+        return SETPOINT_F2;
+        break;
+    case FLOOR3:
+        return SETPOINT_F3;
+        break;
+    default:
+        break;
+    }
+    
+    return 0;
+}
+
 /*
  * Controller functionality
  * - Send elevator location messages to callboxes
@@ -178,43 +200,17 @@ void controller() {
     
     byte update_lcd = 1;
     byte cycle_count = 0;
-    word car_height, distance;  // car height in cm, distance measurement in mm
-    byte cur_floor, last_floor = 0;
+    word distance;  // car height in cm, distance measurement in mm
+    byte cur_floor;
+    byte last_floor = 0;
     //byte b;   // used for debug manual frame sending testing
     
     dist_init();
-    //mctrl_init();   // Initialize servo motor controller
+    mctrl_init();   // Initialize servo motor controller
     
     for(;;) {
         
-        //distance = dist_read()/2;   // div2 is a temporary kludge
-        last_floor = cur_floor;
-        if ( distance > (7*5*CM_PER_FLOOR) ) {
-            car_height = 999;
-            cur_floor = 0;
-#ifdef USE_LED7
-            led7_write(led7_bars[1]);
-#endif
-        } else {
-            car_height = (10*distance)/4;
-            cur_floor = 1 + ((car_height / 10) / CM_PER_FLOOR);
-#ifdef USE_LED7
-            led7_write(led7_table[cur_floor]);
-#endif
-            if ( cur_floor != last_floor ) {
-                update_floor(cur_floor);
-                
-                // if we have reached the target floor, pop off the top of the queue
-                // TODO: change name of getNextFloor() to be more descriptive
-                if(cur_floor == next_floor)
-                getNextFloor();
-            }
-            
-            // Update PID controller feedback value
-            //pid_feedback((car_height/10) * 100);    // scale value up to something we can work with on the bench
-        }
-        
-        //mctrl_update();
+        mctrl_update();
         
         cycle_count++;
         
@@ -225,7 +221,7 @@ void controller() {
         
         if ( update_lcd ) {
             update_lcd = 0;
-            
+/*            
 #ifdef USE_LCD
             if ( cur_floor == 0 ) { 
                 LCDclear();
@@ -235,6 +231,7 @@ void controller() {
                 LCDprintf("%dmm/F%d", car_height, cur_floor);
             }
 #endif
+*/
         }
         
         // CAN bus <-> serial link
@@ -256,7 +253,7 @@ void controller() {
                 
                 addToQueue(button_pressed);
                 next_floor = peekNextFloor();
-                pid_setpoint(next_floor);
+                pid_setpoint(FLOOR2SETPOINT(next_floor));
                 
                 switch(cur_floor) {
                 case FLOOR1:
@@ -302,7 +299,7 @@ void controller() {
                 }
                     
                 next_floor = peekNextFloor();
-                pid_setpoint(next_floor);
+                pid_setpoint(FLOOR2SETPOINT(next_floor));
                 
                 switch(cur_floor) {
                 case FLOOR1:
@@ -341,9 +338,36 @@ void controller() {
             case CMD_DISTANCE:
                 distance = (rxmessage[1] << 8) | rxmessage[2];
                 pid_feedback(distance);
+                
+                if (distance < SETPOINT_F1 + FLOOR_MARGIN) cur_floor = FLOOR1;
+                if (distance > SETPOINT_F2 - FLOOR_MARGIN && distance < SETPOINT_F2 + FLOOR_MARGIN) cur_floor = FLOOR2;
+                if (distance > SETPOINT_F3 - FLOOR_MARGIN && distance < SETPOINT_F3 + FLOOR_MARGIN) cur_floor = FLOOR3;
+                
+                if ( distance > 1500 ) {
+                    cur_floor = 0;
+#ifdef USE_LED7
+                    led7_write(led7_bars[1]);
+#endif
+                } else {
+#ifdef USE_LED7
+                    led7_write(led7_table[cur_floor]);
+#endif
+                    if ( cur_floor != last_floor ) {
+                        update_floor(cur_floor);
+                        last_floor = cur_floor;
+                        
+                        // if we have reached the target floor, pop off the top of the queue
+                        // TODO: change name of getNextFloor() to be more descriptive
+                        if(cur_floor == next_floor){
+                            getNextFloor();
+                            next_floor = peekNextFloor();
+                            pid_setpoint(FLOOR2SETPOINT(next_floor));
+                        }
+                    }
+                }
 #ifdef USE_LCD
-                LCDclear();
-                LCDprintf("Dist: %d", distance);
+                LCDhome();
+                LCDprintf("Dist: %4d", distance);
 #endif
                 break;
             case CMD_ERROR:
@@ -360,6 +384,7 @@ void controller() {
 #endif
                 break;
             }
+            
         }
         
         delay_ms(100);
@@ -539,7 +564,7 @@ void car(void) {
 #ifdef USE_LCD
         LCDhome();
         LCDclear();
-        LCDprintf("Command: %s\nFloor%s Dir: %s", command, floor, direction);
+        LCDprintf("Command: %s\nFloor%s", command, floor);
 #endif
         
         return;
@@ -600,12 +625,16 @@ void callbox(byte my_floor) {
     byte rxmessage[PAYLOAD_SIZE];   // Received data payload
     static byte floor, direction;
     word distance;
+    static byte flag_dist_init = 0;
     CANframe txframe;   // Transmitted CAN frame
     
     floor = 0xFF;   // Start at false floor
     direction = DIRECTION_STATIONARY;   // Assume starting car direction is stationary
     
-    dist_init();
+    if (!flag_dist_init){
+        dist_init();
+        flag_dist_init = 1;
+    }
     
     if(SW1 && !sw1_pressed) {  
         sw1_pressed = 1;
@@ -675,5 +704,5 @@ void callbox(byte my_floor) {
         CANsend(&txframe);
     }
     
-    msleep(100);
+    msleep(200);
 }

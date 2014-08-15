@@ -32,6 +32,7 @@ char getNextFloor () {
         return 0; 							//nothing valid in the queue, simply return 0
 		
 	nextFloor = queue[queuePos]; 			//grab the floor at the front of the queue
+    queue[queuePos] = 0;                    //zero out popped queue position
     
     numInQueue--; 							//there was something valid in the queue, so decrement the number in the queue
     
