@@ -11,27 +11,26 @@
 #include "spi.h"
 #include "pid.h"
 
-#define K_P     0.3
+#define K_P     20
 #define K_I     0
 #define K_D     0
 
 
 void mctrl_init(void) {
-    int const integral_limit = 1000;
     
     SPIinit();
     DACinit();
-    pid_init(K_P * PID_SCALING_FACTOR, K_I * PID_SCALING_FACTOR, K_D * PID_SCALING_FACTOR, integral_limit, 0.25);
+    pid_init(K_P * PID_SCALING_FACTOR, K_I * PID_SCALING_FACTOR, K_D * PID_SCALING_FACTOR, 2097152, 1);
     
 }
 
 /* Update analog differential voltage output to servo */
 void mctrl_update(void) {
-    unsigned int data;
+    unsigned int volatile data;
     
-    data = pid_output() & 0x0FFF;
+    data = (pid_output() + MAX_12BIT/2) & 0x0FFF;
     
     DACpreloadA(data);                  // Preload data into DAC channel A internal register
-    DACloadBshiftA( (4096 - data) );    // Load data into DAC channel B and output it; load in preloaded channel A data and output it
+    DACloadBshiftA( (MAX_12BIT - data) );    // Load data into DAC channel B and output it; load in preloaded channel A data and output it
     
 }
