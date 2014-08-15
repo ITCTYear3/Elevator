@@ -140,7 +140,7 @@ void CANget(byte *data) {
         }
         rxdata_available_flag = 0;
         EnableInterrupts;
-        return;
+        //return;   // If both rxdata_available_flag and putdata_available_flag are set, putdata now gets priority and overwrites the data pointer values
     }
     if ( putdata_available_flag ) {
         DisableInterrupts;
@@ -164,7 +164,7 @@ void CANput(byte *data) {
     
     DisableInterrupts;
     for(i=0; i<PAYLOAD_SIZE; i++) {
-        *(data + i) = putbuffer[i];
+        putbuffer[i] = *(data + i);
     }
     putdata_available_flag = 1;
     EnableInterrupts;
